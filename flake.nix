@@ -64,7 +64,14 @@
           hacks = pkgs.callPackage pyproject-nix.build.hacks {};
 
           # Add additional build overrides
-          overrides = final: prev: {};
+          overrides = final: prev: {
+            numba = prev.numba.overrideAttrs (
+              old: {
+                # requires tbb during fixup phase
+                buildInputs = old.buildInputs ++ [pkgs.tbb];
+              }
+            );
+          };
 
           pythonSet = (pkgs.callPackage pyproject-nix.build.packages {inherit python;}).overrideScope (
             pkgs.lib.composeManyExtensions [
