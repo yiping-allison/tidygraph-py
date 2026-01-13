@@ -2,10 +2,10 @@
 
 A tidy-like API for network manipulation with the [igraph](https://github.com/igraph/python-igraph) library inspired by:
 
--   [tidygraph](https://github.com/thomasp85/tidygraph)
--   [tidygraphtool](https://github.com/jstonge/tidygraphtool/tree/main)
+- [tidygraph](https://github.com/thomasp85/tidygraph)
+- [tidygraphtool](https://github.com/jstonge/tidygraphtool/tree/main)
 
-[!IMPORTANT]
+> [!IMPORTANT]
 > This library is experimental, and updates may be infrequent. Use at your own risk.
 
 ## 🧑‍💻 Development
@@ -14,8 +14,8 @@ The easiest way to get started with development is through [`nix`](https://nixos
 
 I recommend installing nix using either options:
 
--   [Determinate Nix installer](https://github.com/DeterminateSystems/nix-installer)
--   [Official Nix installer](https://github.com/NixOS/nix-installer)
+- [Determinate Nix installer](https://github.com/DeterminateSystems/nix-installer)
+- [Official Nix installer](https://github.com/NixOS/nix-installer)
 
 > [!NOTE]
 > The nix installer provided by the official nix team (since writing, 2026-01-16) is experimental. As a general rule of thumb,
@@ -55,4 +55,4 @@ Update the interpreter path in VSCode's python language settings.
 
 ## TODO
 
--   Consider supporting other graph backends
+- Consider supporting other graph backends
