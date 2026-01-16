@@ -36,6 +36,9 @@
     forEachSupportedSystem = f:
       nixpkgs.lib.genAttrs supportedSystems (
         system: let
+          # ! NOTE: projectName must match the name in pyproject.toml
+          projectName = "tidygraph";
+
           pkgs = import nixpkgs {
             inherit system;
           };
@@ -71,11 +74,26 @@
             ]
           );
 
-          editable = pythonSet.overrideScope editableOverlay;
+          sourceOverride = final: prev: {
+            "${projectName}" = prev.${projectName}.overrideAttrs (old: {
+              src = pkgs.lib.fileset.toSource {
+                root = old.src;
+                fileset = pkgs.lib.fileset.unions [
+                  ./pyproject.toml
+                  ./README.md
+                  ./src/tidygraph/__init__.py
+                ];
+              };
+            });
+          };
 
-          # metadata
-          # ! NOTE: projectName must match the name in pyproject.toml
-          projectName = "tidygraph";
+          editable = pythonSet.overrideScope (
+            pkgs.lib.composeManyExtensions [
+              editableOverlay
+              sourceOverride
+            ]
+          );
+
           nixPackage = pythonSet.${projectName};
         in
           f {
