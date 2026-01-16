@@ -1,0 +1,23 @@
+{
+  "extensions": {
+    "recommendations": [
+      // language support
+      "ms-python.debugpy",
+      "ms-python.python",
+      "nefrob.vscode-just-syntax",
+      "pinage404.nix-extension-pack",
+      "tamasfe.even-better-toml",
+
+      // misc
+      "aaron-bond.better-comments",
+      "streetsidesoftware.code-spell-checker",
+      "wayou.vscode-todo-highlight"
+    ]
+  },
+  "folders": [
+    {
+      "name": "tidygraph",
+      "path": "."
+    }
+  ]
+}
