@@ -31,9 +31,11 @@ def outer_join(
 
     if active == ActiveType.EDGES:
         # augment y with node IDs
-        id_map = g.get_vertex_dataframe().set_index("name")
-        y["source"] = y["from"].map(lambda x: id_map.index.get_loc(x))
-        y["target"] = y["to"].map(lambda x: id_map.index.get_loc(x))
+        nodes_df = g.get_vertex_dataframe()
+        id_map = nodes_df.set_index("name")
+        name_to_index = pd.Series(data=nodes_df.index.to_numpy(), index=id_map.index)
+        y["source"] = y["from"].map(name_to_index)
+        y["target"] = y["to"].map(name_to_index)
         on = ["source", "target"]
         if not g.is_directed():
             # undirected graphs need to consider "mirrored" edges during joins. We do not want to keep
@@ -101,16 +103,17 @@ def inner_join(
     x_tmp["_index"] = range(len(x_tmp))
 
     if active == ActiveType.EDGES:
-        id_map = g.get_vertex_dataframe().set_index("name")
-        y["source"] = y["from"].map(lambda x: id_map.index.get_loc(x))
-        y["target"] = y["to"].map(lambda x: id_map.index.get_loc(x))
+        nodes_df = g.get_vertex_dataframe()
+        id_map = nodes_df.set_index("name")
+        name_to_index = pd.Series(data=nodes_df.index.to_numpy(), index=id_map.index)
+        y["source"] = y["from"].map(name_to_index)
+        y["target"] = y["to"].map(name_to_index)
         on = ["source", "target"]
         if not g.is_directed():
             y_mirror = y.rename(columns={"from": "to", "to": "from", "source": "target", "target": "source"})
             y = pd.concat([y, y_mirror], ignore_index=True)
 
-    x_tmp_merged = x_tmp.merge(y, how="inner", on=on, suffixes=(lsuffix, rsuffix))
-    x_tmp_merged.dropna(axis=1, how="all", inplace=True)
+    x_tmp_merged = x_tmp.merge(y, how="inner", on=on, suffixes=(lsuffix, rsuffix)).dropna(axis=1, how="all")
     # find existing elements that need to be removed (dropped after join)
     to_remove = x_tmp.merge(y, how="left_anti", on=on, suffixes=(lsuffix, rsuffix)).dropna(axis=1, how="all")
 
@@ -119,10 +122,12 @@ def inner_join(
     elif active == ActiveType.EDGES and not to_remove.empty:
         source = to_remove["source"].to_numpy()
         target = to_remove["target"].to_numpy()
+        # igraph strictly requires tuples
         edges = tuple(zip(source, target, strict=True))
         g.delete_edges(edges)
 
     x_tmp_merged.drop(columns=["_index"], inplace=True)
+
     target = g.vs if active == ActiveType.NODES else g.es
     reserved = ReservedKeywords.NODES if active == ActiveType.NODES else ReservedKeywords.EDGES
     for col in x_tmp_merged.columns:
@@ -130,3 +135,48 @@ def inner_join(
             continue
 
         target[col] = x_tmp_merged[col]
+
+
+def left_join(
+    active: ActiveType,
+    g: ig.Graph,
+    y: pd.DataFrame,
+    on: str | Iterable[str] | None = None,
+    lsuffix: str = ".x",
+    rsuffix: str = ".y",
+) -> None:
+    """Performs a left join between the graph's active component and a given DataFrame.
+
+    Args:
+        active (ActiveType): The active component of the graph (nodes or edges).
+        g (ig.Graph): The igraph graph object.
+        y (pd.DataFrame): The DataFrame to join with the graph's active component.
+        on (str | Iterable[str] | None, optional): Column(s) to join on. Defaults to None.
+        lsuffix (str, optional): Suffix to use for overlapping columns from the graph's active component. \
+            Defaults to ".x".
+        rsuffix (str, optional): Suffix to use for overlapping columns from the given (y) DataFrame. Defaults to ".y".
+    """
+    x_tmp = g.get_edge_dataframe() if active == ActiveType.EDGES else g.get_vertex_dataframe()
+    x_tmp["_index"] = range(len(x_tmp))
+
+    if active == ActiveType.EDGES:
+        nodes_df = g.get_vertex_dataframe()
+        id_map = nodes_df.set_index("name")
+        name_to_index = pd.Series(data=nodes_df.index.to_numpy(), index=id_map.index)
+        y["source"] = y["from"].map(name_to_index)
+        y["target"] = y["to"].map(name_to_index)
+        on = ["source", "target"]
+        if not g.is_directed():
+            y_mirror = y.rename(columns={"from": "to", "to": "from", "source": "target", "target": "source"})
+            y = pd.concat([y, y_mirror], ignore_index=True)
+
+    x_tmp = x_tmp.merge(y, how="left", on=on, suffixes=(lsuffix, rsuffix)).dropna(axis=1, how="all")
+    x_tmp.drop(columns=["_index"], inplace=True)
+
+    target = g.vs if active == ActiveType.NODES else g.es
+    reserved = ReservedKeywords.NODES if active == ActiveType.NODES else ReservedKeywords.EDGES
+    for col in x_tmp.columns:
+        if col in reserved:
+            continue
+
+        target[col] = x_tmp[col]
