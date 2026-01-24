@@ -6,5 +6,4 @@
 [
 ]
 ++ lib.optionals stdenv.hostPlatform.isLinux [
-  pkgs.tbb
 ]
