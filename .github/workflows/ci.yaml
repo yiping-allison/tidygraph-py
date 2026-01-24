@@ -22,5 +22,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: "uv sync --group test --frozen --no-default-groups"
+      - name: Lint
+        run: "uv run ruff check src tests"
       - name: Run tests
-        run: "uv run --frozen --no-default-groups pytest"
+        run: "uv run --frozen --no-default-groups pytest tests"
