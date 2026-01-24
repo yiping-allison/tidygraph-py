@@ -5,6 +5,8 @@ A tidy-like API for network manipulation with the [igraph](https://github.com/ig
 - [tidygraph](https://github.com/thomasp85/tidygraph)
 - [tidygraphtool](https://github.com/jstonge/tidygraphtool/tree/main)
 
+The main purpose of using this library on top of `python-igraph` is to have a easier way of integrating graphs with relational data.
+
 > [!IMPORTANT]
 > This library is experimental, and updates may be infrequent. Use at your own risk.
 
@@ -53,6 +55,6 @@ Update the interpreter path in VSCode's python language settings.
 > [!TIP]
 > You can find the modal quickly using the command palette and searching `Python: Select Interpreter`.
 
-## TODO
+## 🔨 TODO
 
-- Consider supporting other graph backends
+- Consider adding more verbs available in R `tidygraph`

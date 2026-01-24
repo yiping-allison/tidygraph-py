@@ -10,6 +10,7 @@
 
       // misc
       "aaron-bond.better-comments",
+      "editorconfig.editorconfig",
       "streetsidesoftware.code-spell-checker",
       "wayou.vscode-todo-highlight"
     ]

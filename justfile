@@ -26,7 +26,7 @@ build *system='uv':
 # Run formatters
 [group('misc')]
 fmt:
-    @uv run ruff check src tests
+    @uv run ruff check src tests --fix
     @uv run ruff format src tests
     @nix fmt flake.nix nix
 
