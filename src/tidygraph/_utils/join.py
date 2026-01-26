@@ -27,7 +27,7 @@ def outer_join(
         rsuffix (str, optional): Suffix to use for overlapping columns from the given (y) DataFrame. Defaults to ".y".
     """
     x_tmp = g.get_edge_dataframe() if active == ActiveType.EDGES else g.get_vertex_dataframe()
-    x_tmp["_index"] = range(len(x_tmp))
+    x_tmp["_index"] = x_tmp.index.to_series()
 
     if active == ActiveType.EDGES:
         # augment y with node IDs
@@ -100,7 +100,6 @@ def inner_join(
         rsuffix (str, optional): Suffix to use for overlapping columns from the given (y) DataFrame. Defaults to ".y".
     """
     x_tmp = g.get_edge_dataframe() if active == ActiveType.EDGES else g.get_vertex_dataframe()
-    x_tmp["_index"] = range(len(x_tmp))
 
     if active == ActiveType.EDGES:
         nodes_df = g.get_vertex_dataframe()
@@ -118,15 +117,13 @@ def inner_join(
     to_remove = x_tmp.merge(y, how="left_anti", on=on, suffixes=(lsuffix, rsuffix)).dropna(axis=1, how="all")
 
     if active == ActiveType.NODES and not to_remove.empty:
-        g.delete_vertices(to_remove["_index"])
+        g.delete_vertices(to_remove.index.to_numpy())
     elif active == ActiveType.EDGES and not to_remove.empty:
         source = to_remove["source"].to_numpy()
         target = to_remove["target"].to_numpy()
         # igraph strictly requires tuples
         edges = tuple(zip(source, target, strict=True))
         g.delete_edges(edges)
-
-    x_tmp_merged.drop(columns=["_index"], inplace=True)
 
     target = g.vs if active == ActiveType.NODES else g.es
     reserved = ReservedKeywords.NODES if active == ActiveType.NODES else ReservedKeywords.EDGES
@@ -157,7 +154,6 @@ def left_join(
         rsuffix (str, optional): Suffix to use for overlapping columns from the given (y) DataFrame. Defaults to ".y".
     """
     x_tmp = g.get_edge_dataframe() if active == ActiveType.EDGES else g.get_vertex_dataframe()
-    x_tmp["_index"] = range(len(x_tmp))
 
     if active == ActiveType.EDGES:
         nodes_df = g.get_vertex_dataframe()
@@ -171,7 +167,6 @@ def left_join(
             y = pd.concat([y, y_mirror], ignore_index=True)
 
     x_tmp = x_tmp.merge(y, how="left", on=on, suffixes=(lsuffix, rsuffix)).dropna(axis=1, how="all")
-    x_tmp.drop(columns=["_index"], inplace=True)
 
     target = g.vs if active == ActiveType.NODES else g.es
     reserved = ReservedKeywords.NODES if active == ActiveType.NODES else ReservedKeywords.EDGES
