@@ -8,7 +8,7 @@ import narwhals as nw
 import pandas as pd
 from narwhals.typing import IntoDataFrame
 
-from tidygraph._utils import ReservedKeywords, inner_join, is_forest, is_tree, outer_join
+from tidygraph._utils import ReservedKeywords, inner_join, is_forest, is_tree, left_join, outer_join
 from tidygraph.activate import ActiveState, ActiveType
 from tidygraph.exceptions import TidygraphError, TidygraphValueError
 
@@ -164,6 +164,7 @@ class Tidygraph:
         dispatcher = {
             "outer": outer_join,
             "inner": inner_join,
+            "left": left_join,
         }
 
         join_func = dispatcher.get(how)
