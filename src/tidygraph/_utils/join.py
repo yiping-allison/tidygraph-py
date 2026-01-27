@@ -1,10 +1,12 @@
 from collections.abc import Iterable
 
 import igraph as ig
+import numpy as np
 import pandas as pd
 
 from tidygraph._utils.const import ReservedKeywords
 from tidygraph.activate import ActiveType
+from tidygraph.exceptions import TidygraphValueError
 
 
 def outer_join(
@@ -71,13 +73,7 @@ def outer_join(
         new_edges = x_tmp.loc[new_rows, ["source", "target"]].to_numpy()
         g.add_edges(new_edges)
 
-    target = g.vs if active == ActiveType.NODES else g.es
-    reserved = ReservedKeywords.NODES if active == ActiveType.NODES else ReservedKeywords.EDGES
-    for col in x_tmp.columns:
-        if col in reserved:
-            continue
-
-        target[col] = x_tmp[col]
+    _apply_attributes(active, g, x_tmp)
 
 
 def inner_join(
@@ -125,13 +121,7 @@ def inner_join(
         edges = tuple(zip(source, target, strict=True))
         g.delete_edges(edges)
 
-    target = g.vs if active == ActiveType.NODES else g.es
-    reserved = ReservedKeywords.NODES if active == ActiveType.NODES else ReservedKeywords.EDGES
-    for col in x_tmp_merged.columns:
-        if col in reserved:
-            continue
-
-        target[col] = x_tmp_merged[col]
+    _apply_attributes(active, g, x_tmp_merged)
 
 
 def left_join(
@@ -168,10 +158,98 @@ def left_join(
 
     x_tmp = x_tmp.merge(y, how="left", on=on, suffixes=(lsuffix, rsuffix)).dropna(axis=1, how="all")
 
+    _apply_attributes(active, g, x_tmp)
+
+
+def right_join(
+    active: ActiveType,
+    g: ig.Graph,
+    y: pd.DataFrame,
+    on: str | Iterable[str] | None = None,
+    lsuffix: str = ".x",
+    rsuffix: str = ".y",
+) -> None:
+    """Performs a right join between the graph's active component and a given DataFrame.
+
+    Args:
+        active (ActiveType): The active component of the graph (nodes or edges).
+        g (ig.Graph): The igraph graph object.
+        y (pd.DataFrame): The DataFrame to join with the graph's active component.
+        on (str | Iterable[str] | None, optional): Column(s) to join on. Defaults to None.
+        lsuffix (str, optional): Suffix to use for overlapping columns from the graph's active component. \
+            Defaults to ".x".
+        rsuffix (str, optional): Suffix to use for overlapping columns from the given (y) DataFrame. Defaults to ".y".
+    """
+    x_tmp = g.get_edge_dataframe() if active == ActiveType.EDGES else g.get_vertex_dataframe()
+    x_tmp["_index"] = x_tmp.index.to_series()
+
+    nodes_df = g.get_vertex_dataframe()
+    id_map = nodes_df.set_index("name")
+    name_to_index = pd.Series(data=nodes_df.index.to_numpy(), index=id_map.index)
+
+    new_x_tmp: pd.DataFrame = pd.DataFrame()
+    to_remove: pd.DataFrame = pd.DataFrame()
+
+    if active == ActiveType.EDGES:
+        y["source"] = y["from"].map(name_to_index)
+        y["target"] = y["to"].map(name_to_index)
+        if not y[["source", "target"]].notna().all().all():
+            raise TidygraphValueError("Cannot perform edge join on non-existing nodes in the graph")
+
+        on = ["source", "target"]
+        if not g.is_directed():
+            x_tmp_mirror = x_tmp.rename(columns={"source": "target", "target": "source"})
+            x_tmp_with_mirror = pd.concat([x_tmp, x_tmp_mirror], ignore_index=False)
+            y["_index"] = np.nan
+            new_x_tmp = y.merge(x_tmp_with_mirror, how="left", on=on, suffixes=(lsuffix, rsuffix))
+            # if index from x_tmp (graph) is non-null, keep it; else use index from y
+            new_x_tmp["_index"] = new_x_tmp["_index.y"].combine_first(new_x_tmp["_index.x"])
+            new_x_tmp.drop(columns=["_index.x", "_index.y"], inplace=True)
+            y_mirror = y.rename(columns={"from": "to", "to": "from", "source": "target", "target": "source"})
+            y_with_mirror = pd.concat([y, y_mirror], ignore_index=True)
+            to_remove = y_with_mirror.merge(x_tmp, how="right_anti", on=on, suffixes=(lsuffix, rsuffix))
+        else:
+            y["_index"] = np.nan
+            new_x_tmp = y.merge(x_tmp, how="left", on=on, suffixes=(lsuffix, rsuffix))
+            new_x_tmp["_index"] = new_x_tmp["_index.y"].combine_first(new_x_tmp["_index.x"])
+            new_x_tmp.drop(columns=["_index.x", "_index.y"], inplace=True)
+            to_remove = y.merge(x_tmp, how="right_anti", on=on, suffixes=(lsuffix, rsuffix))
+    else:
+        y["_index"] = y["name"].map(name_to_index)
+        new_x_tmp = x_tmp.merge(y, how="right", on=on, suffixes=(lsuffix, rsuffix))
+        new_x_tmp.dropna(subset=new_x_tmp.columns.difference(["_index"]), inplace=True)
+        to_remove = x_tmp.merge(y, how="left_anti", on=on, suffixes=(lsuffix, rsuffix)).dropna(axis=1, how="all")
+
+    new_rows = new_x_tmp["_index"].isna()
+    if active == ActiveType.NODES:
+        if not to_remove.empty:
+            g.delete_vertices(to_remove.index.to_numpy())
+        g.add_vertices(new_rows.sum())
+    elif active == ActiveType.EDGES:
+        if not to_remove.empty:
+            source = to_remove["source"].to_numpy()
+            target = to_remove["target"].to_numpy()
+            edges = tuple(zip(source, target, strict=True))
+            g.delete_edges(edges)
+
+        new_edges = new_x_tmp.loc[new_rows, ["source", "target"]].to_numpy()
+        g.add_edges(new_edges)
+
+    new_x_tmp.drop(columns=["_index"], inplace=True)
+
+    _apply_attributes(active, g, new_x_tmp)
+
+
+def _apply_attributes(
+    active: ActiveType,
+    g: ig.Graph,
+    data: pd.DataFrame,
+) -> None:
+    """Internal helper to apply updated attributes to the graph."""
     target = g.vs if active == ActiveType.NODES else g.es
     reserved = ReservedKeywords.NODES if active == ActiveType.NODES else ReservedKeywords.EDGES
-    for col in x_tmp.columns:
+    for col in data.columns:
         if col in reserved:
             continue
 
-        target[col] = x_tmp[col]
+        target[col] = data[col]
