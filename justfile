@@ -1,5 +1,6 @@
-_default:
-    @just --list
+[private]
+default:
+    @just --list --unsorted
 
 supported_packaging_systems := "uv nix"
 
@@ -26,8 +27,8 @@ build *system='uv':
 # Run formatters
 [group('misc')]
 fmt:
-    @uv run ruff check src tests --fix
     @uv run ruff format src tests
+    @uv run ruff check src tests --fix
     @nix fmt flake.nix nix
 
 # Display flake schema

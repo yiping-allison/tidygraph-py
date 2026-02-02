@@ -4,7 +4,7 @@ import igraph as ig
 import numpy as np
 import pandas as pd
 
-from tidygraph._utils.const import ReservedKeywords
+from tidygraph._utils.const import ReservedGraphKeywords
 from tidygraph.activate import ActiveType
 from tidygraph.exceptions import TidygraphValueError
 
@@ -30,6 +30,7 @@ def outer_join(
     """
     x_tmp = g.get_edge_dataframe() if active == ActiveType.EDGES else g.get_vertex_dataframe()
     x_tmp["_index"] = x_tmp.index.to_series()
+    y = y.copy()
 
     if active == ActiveType.EDGES:
         # augment y with node IDs
@@ -54,7 +55,7 @@ def outer_join(
             edgelist_mirror = x_tmp.rename(columns={"source": "target", "target": "source"})
             edgelist_with_mirror = pd.concat([x_tmp, edgelist_mirror], ignore_index=True)
             # drop reserved columns from y since they are duplicate and are not needed in merge result
-            y.drop(columns=[col for col in ReservedKeywords.EDGES if col not in [*on, "node ID"]], inplace=True)
+            y.drop(columns=[col for col in ReservedGraphKeywords.EDGES if col not in [*on, "node ID"]], inplace=True)
             x_tmp_new = edgelist_with_mirror.merge(y, how="right_anti", on=on, suffixes=(lsuffix, rsuffix)).dropna(
                 axis=1, how="all"
             )
@@ -96,6 +97,7 @@ def inner_join(
         rsuffix (str, optional): Suffix to use for overlapping columns from the given (y) DataFrame. Defaults to ".y".
     """
     x_tmp = g.get_edge_dataframe() if active == ActiveType.EDGES else g.get_vertex_dataframe()
+    y = y.copy()
 
     if active == ActiveType.EDGES:
         nodes_df = g.get_vertex_dataframe()
@@ -144,6 +146,7 @@ def left_join(
         rsuffix (str, optional): Suffix to use for overlapping columns from the given (y) DataFrame. Defaults to ".y".
     """
     x_tmp = g.get_edge_dataframe() if active == ActiveType.EDGES else g.get_vertex_dataframe()
+    y = y.copy()
 
     if active == ActiveType.EDGES:
         nodes_df = g.get_vertex_dataframe()
@@ -182,6 +185,7 @@ def right_join(
     """
     x_tmp = g.get_edge_dataframe() if active == ActiveType.EDGES else g.get_vertex_dataframe()
     x_tmp["_index"] = x_tmp.index.to_series()
+    y = y.copy()
 
     nodes_df = g.get_vertex_dataframe()
     id_map = nodes_df.set_index("name")
@@ -205,6 +209,16 @@ def right_join(
             # if index from x_tmp (graph) is non-null, keep it; else use index from y
             new_x_tmp["_index"] = new_x_tmp["_index.y"].combine_first(new_x_tmp["_index.x"])
             new_x_tmp.drop(columns=["_index.x", "_index.y"], inplace=True)
+            new_x_tmp.rename(
+                columns=lambda column: (  # pyright: ignore[reportAny]
+                    column[:-2] + ".y"
+                    if column.endswith(".x")
+                    else column[:-2] + ".x"
+                    if column.endswith(".y")
+                    else column
+                ),
+                inplace=True,
+            )
             y_mirror = y.rename(columns={"from": "to", "to": "from", "source": "target", "target": "source"})
             y_with_mirror = pd.concat([y, y_mirror], ignore_index=True)
             to_remove = y_with_mirror.merge(x_tmp, how="right_anti", on=on, suffixes=(lsuffix, rsuffix))
@@ -213,6 +227,16 @@ def right_join(
             new_x_tmp = y.merge(x_tmp, how="left", on=on, suffixes=(lsuffix, rsuffix))
             new_x_tmp["_index"] = new_x_tmp["_index.y"].combine_first(new_x_tmp["_index.x"])
             new_x_tmp.drop(columns=["_index.x", "_index.y"], inplace=True)
+            new_x_tmp.rename(
+                columns=lambda column: (  # pyright: ignore[reportAny]
+                    column[:-2] + ".y"
+                    if column.endswith(".x")
+                    else column[:-2] + ".x"
+                    if column.endswith(".y")
+                    else column
+                ),
+                inplace=True,
+            )
             to_remove = y.merge(x_tmp, how="right_anti", on=on, suffixes=(lsuffix, rsuffix))
     else:
         y["_index"] = y["name"].map(name_to_index)
@@ -247,7 +271,13 @@ def _apply_attributes(
 ) -> None:
     """Internal helper to apply updated attributes to the graph."""
     target = g.vs if active == ActiveType.NODES else g.es
-    reserved = ReservedKeywords.NODES if active == ActiveType.NODES else ReservedKeywords.EDGES
+
+    # remove old attributes; these are already handled in merge
+    old_attrs = set(target.attribute_names())
+    for attr in old_attrs:
+        del target[attr]
+
+    reserved = ReservedGraphKeywords.NODES if active == ActiveType.NODES else ReservedGraphKeywords.EDGES
     for col in data.columns:
         if col in reserved:
             continue
