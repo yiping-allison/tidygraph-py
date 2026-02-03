@@ -1,5 +1,7 @@
 # tidygraph
 
+[![CI](https://github.com/yiping-allison/tidygraph-py/actions/workflows/ci.yaml/badge.svg)](https://github.com/yiping-allison/tidygraph-py/actions/workflows/ci.yaml)
+
 A tidy-like API for network manipulation with the [igraph](https://github.com/igraph/python-igraph) library inspired by:
 
 - [tidygraph](https://github.com/thomasp85/tidygraph)
