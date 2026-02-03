@@ -58,3 +58,4 @@ Update the interpreter path in VSCode's python language settings.
 ## 🔨 TODO
 
 - Consider adding more verbs available in R `tidygraph`
+- Cleanup test code

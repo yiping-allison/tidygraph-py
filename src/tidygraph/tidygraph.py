@@ -8,7 +8,16 @@ import narwhals as nw
 import pandas as pd
 from narwhals.typing import IntoDataFrame
 
-from tidygraph._utils import ReservedKeywords, inner_join, is_forest, is_tree, left_join, outer_join, right_join
+from tidygraph._utils import (
+    RESERVED_JOIN_KEYWORD,
+    ReservedGraphKeywords,
+    inner_join,
+    is_forest,
+    is_tree,
+    left_join,
+    outer_join,
+    right_join,
+)
 from tidygraph.activate import ActiveState, ActiveType
 from tidygraph.exceptions import TidygraphError, TidygraphValueError
 
@@ -114,7 +123,9 @@ class Tidygraph:
         except KeyError as e:
             raise TidygraphValueError(f"attempted to derive expr from non-existent column: {e}") from None
 
-        reserved = ReservedKeywords.NODES if self._activate.active == ActiveType.NODES else ReservedKeywords.EDGES
+        reserved = (
+            ReservedGraphKeywords.NODES if self._activate.active == ActiveType.NODES else ReservedGraphKeywords.EDGES
+        )
         columns = list(modified_df.columns)
         start_index = next((i for i, x in enumerate(columns) if x not in reserved), None)
         if start_index is None:
@@ -144,6 +155,11 @@ class Tidygraph:
             does not make sense to join on other edge attributes). Similarly, when joining to nodes, the `on` argument \
             is expected to be `"name"`.
 
+        ! NOTE: This method mutates graph relationships depending on the current active context. For example, when in \
+            the edges context, if a right join has edge pairs that do not exist in the current graph, those edges will \
+            be added to the graph (missing nodes WILL NOT be created; they are expected to exist). Likewise, edge \
+            pairs that exist in the current graph but not in the given dataframe will be removed from the graph.
+
         Args:
             df (IntoDataFrame): A dataframe-like object to join with the active graph context.
             on (str | Iterable[str] | None): The column(s) to join on. If None, the decision will be automatic based \
@@ -151,9 +167,17 @@ class Tidygraph:
             how (Literal["left", "right", "inner", "outer"]): The type of join to perform. Defaults to "left".
             lsuffix (str): Suffix to use for overlapping columns from the active graph context. Defaults to ".x".
             rsuffix (str): Suffix to use for overlapping columns from the given dataframe. Defaults to ".y".
+
+        Raises:
+            TidygraphValueError: If the given DataFrame does not match expected requirements based on the active \
+                context, if the given DataFrame contains a reserved key, or if an unsupported join type is specified.
         """
         df_pd = nw.from_native(df).to_pandas()
         cols = set(list(df_pd.columns))
+        if RESERVED_JOIN_KEYWORD in cols:
+            raise TidygraphValueError(
+                f"column name '{RESERVED_JOIN_KEYWORD}' is reserved for internal use. Please rename the column."
+            )
         if self._activate.active == ActiveType.EDGES:
             if not all([required in cols for required in ["from", "to"]]):
                 raise TidygraphValueError('when joining to edges, dataframe must contain "from" and "to" columns.')
