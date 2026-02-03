@@ -5,16 +5,21 @@ default:
 supported_packaging_systems := "uv nix"
 has_nix := `command -v nix`
 
-_build_nix:
+[private]
+ensure_nix:
     #!/usr/bin/env sh
-    echo "📦️ Packaging using nix..."
     if [ -z "{{ has_nix }}" ]; then
         echo "❌ Nix must be installed";
         exit 1;
     fi;
-    nix build --no-link;
 
-_build_uv:
+[private]
+build_nix: ensure_nix
+    @echo "📦️ Packaging using nix..."
+    @nix build --no-link
+
+[private]
+build_uv:
     @echo "📦️ Packaging using uv..."
     @uv build
 
@@ -23,7 +28,7 @@ _build_uv:
 build *system='uv':
     #!/usr/bin/env sh
     if echo "{{ supported_packaging_systems }}" | grep -qw "{{ system }}"; then
-        system_target="_build_{{ system }}";
+        system_target="build_{{ system }}";
         just "$system_target";
     else
         echo "❌ Unsupported packaging system: {{ system }}";
@@ -43,13 +48,8 @@ fmt:
 
 # Display flake schema
 [group('misc')]
-schema:
-    #!/usr/bin/env sh
-    if [ -z "{{ has_nix }}" ]; then
-        echo "❌ Nix must be installed";
-        exit 1;
-    fi;
-    nix flake show;
+schema: ensure_nix
+    @nix flake show
 
 # Run tests
 [group('misc')]
