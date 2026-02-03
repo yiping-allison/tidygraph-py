@@ -1,9 +1,11 @@
-[private]
-default:
-    @just --list --unsorted
-
 supported_packaging_systems := "uv nix"
+
 has_nix := `command -v nix`
+
+[private]
+[default]
+list:
+    @just --list --unsorted
 
 [private]
 ensure_nix:
@@ -38,13 +40,9 @@ build *system='uv':
 # Run formatters
 [group('misc')]
 fmt:
-    #!/usr/bin/env sh
-    uv run ruff format src tests;
-    uv run ruff check src tests --fix;
-
-    if [ -n "{{ has_nix }}" ]; then
-        nix fmt flake.nix nix
-    fi;
+    @uv run ruff format src tests;
+    @uv run ruff check src tests --fix;
+    @if [ -n "{{ has_nix }}" ]; then nix fmt flake.nix nix; fi
 
 # Display flake schema
 [group('misc')]
@@ -54,4 +52,4 @@ schema: ensure_nix
 # Run tests
 [group('misc')]
 test:
-    @uv run --frozen --no-default-groups pytest tests
+    @uv run --frozen --no-default-groups --group test pytest tests
