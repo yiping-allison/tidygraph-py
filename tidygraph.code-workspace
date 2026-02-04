@@ -2,11 +2,13 @@
   "extensions": {
     "recommendations": [
       // language support
+      "charliermarsh.ruff",
+      "esbenp.prettier-vscode",
       "ms-python.debugpy",
       "ms-python.python",
       "nefrob.vscode-just-syntax",
       "pinage404.nix-extension-pack",
-      "tamasfe.even-better-toml",
+      "tombi-toml.tombi",
 
       // misc
       "aaron-bond.better-comments",

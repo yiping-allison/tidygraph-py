@@ -178,6 +178,7 @@ class Tidygraph:
             raise TidygraphValueError(
                 f"column name '{RESERVED_JOIN_KEYWORD}' is reserved for internal use. Please rename the column."
             )
+
         if self._activate.active == ActiveType.EDGES:
             if not all([required in cols for required in ["from", "to"]]):
                 raise TidygraphValueError('when joining to edges, dataframe must contain "from" and "to" columns.')
