@@ -1,6 +1,6 @@
 # tidygraph
 
-[![CI](https://github.com/yiping-allison/tidygraph-py/actions/workflows/ci.yaml/badge.svg)](https://github.com/yiping-allison/tidygraph-py/actions/workflows/ci.yaml)
+[![ci](https://github.com/yiping-allison/tidygraph-py/actions/workflows/ci.yaml/badge.svg)](https://github.com/yiping-allison/tidygraph-py/actions/workflows/ci.yaml)
 
 A tidy-like API for network manipulation with the [igraph](https://github.com/igraph/python-igraph) library inspired by:
 
@@ -8,6 +8,11 @@ A tidy-like API for network manipulation with the [igraph](https://github.com/ig
 - [tidygraphtool](https://github.com/jstonge/tidygraphtool/tree/main)
 
 The main purpose of using this library on top of `python-igraph` is to have a easier way of integrating graphs with relational data.
+
+```python
+tg = Tidygraph.from_dataframe(...)
+tg.activate(ActiveType.EDGES).join(..., how="outer").mutate({"rank": lambda x: 1.0 - x["score"]})
+```
 
 > [!IMPORTANT]
 > This library is experimental, and updates may be infrequent. Use at your own risk.
@@ -28,7 +33,7 @@ I recommend installing nix using either options:
 
 Additionally you will need [`direnv`](https://direnv.net/) and [`nix-direnv`](https://github.com/nix-community/nix-direnv?tab=readme-ov-file).
 
-Most (if not all) `nix` development workflow use direnv to auto-load the nix shell environment.
+Most (if not all) `nix` development workflows use direnv to auto-load the nix shell environment.
 
 The main editor of choice is [VSCode](https://code.visualstudio.com/download). Recommended extensions are included in the [workspace](./tidygraph.code-workspace) file.
 

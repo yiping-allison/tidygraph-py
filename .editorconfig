@@ -16,3 +16,9 @@ indent_size = 2
 
 [*.yaml]
 indent_size = 2
+
+[.prettierrc]
+indent_size = 2
+
+[*.code-workspace]
+indent_size = 2
