@@ -18,6 +18,7 @@ from tidygraph._utils import (
     outer_join,
     right_join,
 )
+from tidygraph._utils.centrality import centrality_degree
 from tidygraph.activate import ActiveState, ActiveType
 from tidygraph.exceptions import TidygraphError, TidygraphValueError
 
@@ -84,6 +85,57 @@ class Tidygraph:
             A pandas DataFrame containing the edges and their attributes.
         """
         return self._graph.get_edge_dataframe()
+
+    def degree(self, *args: int | list[int], **kwargs: str | bool) -> int | list[int]:
+        """Calculates the degrees associated with the specified vertices.
+
+        View the referenced `igraph` documentation for detailed notes.
+
+        Example:
+            ```py
+            # calculate the out degree for each node in a directed graph
+            tg.degree(mode="out")
+
+            # calculate the degree for vertices `[0, 1]`
+            tg.degree([0, 1])
+            ```
+
+        Args:
+            vertices (int | list[int], Optional): Subset of vertices to find degrees for.
+            mode (str, Optional): specify `in`, `out`, or `all` for in-degree, out-degree, or sum of both.
+            loops (bool, Optional): Whether self-loops should be counted, defaults to True.
+
+        Returns:
+            Either an integer or list of integer degrees.
+
+        References:
+            - https://python.igraph.org/en/1.0.0/api/igraph.GraphBase.html#degree
+        """
+        return self._graph.degree(*args, **kwargs)
+
+    def centrality(self, how: Literal["degree", "alpha"], **kwargs: object) -> float | list[float]:
+        """Calculate node and edge centrality.
+
+        The "centrality" of a node measures the importance for it within the network.
+        This method is a wrapper that exposes different centrality implementations.
+
+        Args:
+            how (str): Which centrality measure to calculate.
+            kwargs (dict[str, Any]): Other parameters that can be passed to centrality function. Accepted \
+                parameters differ depending on chosen mode.
+
+        Returns:
+            Either a float or list of floats representing calculated centrality.
+
+        References:
+            - https://tidygraph.data-imaginist.com/reference/centrality.html
+        """
+        dispatcher = {"degree": centrality_degree}
+        func = dispatcher.get(how)
+        if not func:
+            raise TidygraphValueError(f"unsupported centrality method: {how}")
+
+        return func(self._activate.active, self._graph, **kwargs)
 
     def activate(self, what: ActiveType) -> "Tidygraph":
         """Sets the currently active type (nodes or edges).

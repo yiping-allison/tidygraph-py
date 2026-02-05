@@ -7,7 +7,7 @@ A tidy-like API for network manipulation with the [igraph](https://github.com/ig
 - [tidygraph](https://github.com/thomasp85/tidygraph)
 - [tidygraphtool](https://github.com/jstonge/tidygraphtool/tree/main)
 
-The main purpose of using this library on top of `python-igraph` is to have a easier way of integrating graphs with relational data.
+The main purpose of using this library on top of `python-igraph` is to support relational data manipulation.
 
 ```python
 tg = Tidygraph.from_dataframe(...)
@@ -39,7 +39,7 @@ The main editor of choice is [VSCode](https://code.visualstudio.com/download). R
 
 If everything is set up correctly, the environment should just work!
 
-### 🚑️ FAQs
+### 🚑️ FAQ
 
 #### Nix, Python, and VSCode
 
@@ -61,6 +61,11 @@ Update the interpreter path in VSCode's python language settings.
 
 > [!TIP]
 > You can find the modal quickly using the command palette and searching `Python: Select Interpreter`.
+
+#### Is `Tidygraph` thread-safe?
+
+No. Tidygraph is built on top of `igraph`, which the core C library is inherently not thread-safe.
+See [official response](https://github.com/igraph/python-igraph/issues/866) for details.
 
 ## 🔨 TODO
 

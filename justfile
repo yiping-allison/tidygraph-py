@@ -1,9 +1,9 @@
-supported_packaging_systems := "uv nix"
+supported_packaging_tools := "uv nix"
 
 has_nix := `command -v nix`
 
-[private]
 [default]
+[private]
 list:
     @just --list --unsorted
 
@@ -25,15 +25,15 @@ build_uv:
     @echo "📦️ Packaging using uv..."
     @uv build
 
-# Build project
+# Build package using tool
 [group('build')]
-build *system='uv':
+build *tool='uv':
     #!/usr/bin/env sh
-    if echo "{{ supported_packaging_systems }}" | grep -qw "{{ system }}"; then
-        system_target="build_{{ system }}";
-        just "$system_target";
+    if echo "{{ supported_packaging_tools }}" | grep -qw "{{ tool }}"; then
+        tool_target="build_{{ tool }}";
+        just "$tool_target";
     else
-        echo "❌ Unsupported packaging system: {{ system }}";
+        echo "❌ Unsupported packaging tool: {{ tool }}";
         exit 1;
     fi;
 

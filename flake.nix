@@ -38,6 +38,7 @@
         system: let
           # ! NOTE: projectName must match the name in pyproject.toml
           projectName = "tidygraph";
+          version = "0.0.1";
 
           pkgs = import nixpkgs {
             inherit system;
@@ -97,7 +98,7 @@
           nixPackage = pythonSet.${projectName};
         in
           f {
-            inherit pkgs workspace pythonSet editable projectName nixPackage;
+            inherit pkgs workspace pythonSet editable projectName version nixPackage;
           }
       );
   in {
@@ -129,10 +130,11 @@
         pythonSet,
         nixPackage,
         projectName,
+        version,
         ...
       }: let
         inherit (pkgs.callPackage pyproject-nix.build.util {}) mkApplication;
-        venv = pythonSet.mkVirtualEnv "${projectName}" workspace.deps.default;
+        venv = pythonSet.mkVirtualEnv "${projectName}-${version}" workspace.deps.default;
       in {
         default = mkApplication {
           venv = venv;

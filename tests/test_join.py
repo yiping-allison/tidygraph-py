@@ -44,7 +44,7 @@ def active_type(request) -> ActiveType:
 
 
 def test_invalid_input_raises(active_type: ActiveType, graph: ig.Graph) -> None:
-    tg = Tidygraph(graph)
+    tg = Tidygraph(graph=graph)
     # reserved join keyword should error
     with pytest.raises(TidygraphValueError):
         _ = tg.activate(active_type).join(

@@ -73,6 +73,6 @@ def test_describe(nodes, edges, directed, expected):
     g.add_vertices(nodes)
     g.add_edges(edges)
 
-    tidygraph = Tidygraph(g)
+    tidygraph = Tidygraph(graph=g)
     description = tidygraph.describe()
     assert description == expected
