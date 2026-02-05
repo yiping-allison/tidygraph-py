@@ -15,7 +15,6 @@ class ActiveType(Enum):
 class ActiveState:
     """Represents the internals of what is currently active in a Tidygraph object."""
 
-    # The focused row index. -1 means no focus.
     _active: ActiveType = ActiveType.NODES
 
     @property

@@ -5,6 +5,9 @@
   "cSpell.words": ["igraph", "tidygraph"],
 
   "editor.formatOnSave": true,
+  "[just]": {
+    "editor.formatOnSave": false
+  },
   "[toml]": {
     "editor.defaultFormatter": "tombi-toml.tombi"
   },
@@ -16,5 +19,8 @@
   },
   "[yaml]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[nix]": {
+    "editor.formatOnSave": false
   }
 }
