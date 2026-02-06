@@ -38,7 +38,7 @@
         system: let
           # ! NOTE: projectName must match the name in pyproject.toml
           projectName = "tidygraph";
-          version = "0.0.2";
+          version = "0.1.0";
 
           pkgs = import nixpkgs {
             inherit system;

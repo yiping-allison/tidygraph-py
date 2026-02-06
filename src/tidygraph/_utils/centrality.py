@@ -368,7 +368,7 @@ def centrality_pagerank(
 
     if has_personalized:
         if has_weights:
-            # ! NOTE: `pagerank` only support python list variant for weight param
+            # ! NOTE: `pagerank` only supports python list variant for weight param
             return g.personalized_pagerank(weights=weights.to_list(), reset=personalized, **kwargs)
         return g.personalized_pagerank(reset=personalized, **kwargs)
 
