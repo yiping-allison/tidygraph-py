@@ -6,7 +6,7 @@ description = "tidy-like interface for network manipulation and visualization in
 readme = "README.md"
 requires-python = ">=3.13"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICEN[CS]E*"]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Intended Audience :: Developers",
@@ -16,7 +16,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries",
   "Topic :: Software Development :: Libraries :: Python Modules"
 ]
-urls = { repository = "https://github.com/yiping-allison/tidygraph-py" }
+urls = { issues = "https://github.com/yiping-allison/tidygraph-py/issues", repository = "https://github.com/yiping-allison/tidygraph-py" }
 # Declare any runtime pip dependencies (such as numpy).
 # Do NOT put test dependencies (such as pytest) here.
 # Test dependencies go in the [dependency-groups.test] section.
@@ -84,3 +84,18 @@ convention = "google"
 [tool.ruff.format]
 quote-style = "double"
 docstring-code-format = true
+
+[[tool.uv.index]]
+# https://docs.astral.sh/uv/guides/package/#publishing-your-package
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
+
+[[tool.uv.index]]
+# https://docs.pypi.org/api/index-api/
+# https://docs.pypi.org/api/upload/
+name = "pypi"
+url = "https://pypi.org/simple/"
+publish-url = "https://upload.pypi.org/legacy/"
+explicit = true

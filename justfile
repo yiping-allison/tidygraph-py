@@ -23,7 +23,7 @@ build_nix: ensure_nix
 [private]
 build_uv:
     @echo "📦️ Packaging using uv..."
-    @uv build
+    @uv build --clear
 
 # Build package using tool
 [group('build')]
@@ -53,3 +53,8 @@ schema: ensure_nix
 [group('misc')]
 test:
     @uv run --frozen --no-default-groups --group test pytest tests
+
+# Publish package to `test.pypi` index for testing
+[group('misc')]
+upload: build
+    @uv publish --index testpypi
