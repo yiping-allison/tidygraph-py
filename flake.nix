@@ -36,13 +36,14 @@
     forEachSupportedSystem = f:
       nixpkgs.lib.genAttrs supportedSystems (
         system: let
-          # ! NOTE: projectName must match the name in pyproject.toml
-          projectName = "tidygraph";
-          version = "0.1.0";
-
           pkgs = import nixpkgs {
             inherit system;
           };
+
+          # ! NOTE: projectName and version must match values in pyproject.toml
+          config = (pkgs.lib.importTOML ./pyproject.toml);
+          projectName = config.project.name;
+          version = config.project.version;
 
           python = pkgs.python313;
           pythonPackages = python.pkgs;
