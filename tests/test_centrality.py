@@ -1,4 +1,4 @@
-from typing import Any, Callable, Literal
+from typing import Any, Callable
 
 import igraph as ig
 import pandas as pd
@@ -7,6 +7,13 @@ import pytest
 from tidygraph import Tidygraph
 from tidygraph.activate import ActiveType
 from tidygraph.exceptions import TidygraphValueError
+from tidygraph.tidygraph import CentralityKind
+
+NODE_KINDS = ["degree", "harmonic", "betweenness", "pagerank", "closeness", "eigenvector"]
+EDGE_KINDS = ["edge_betweenness"]
+ALL = NODE_KINDS + EDGE_KINDS
+
+KIND_MAPPING = {kind: ActiveType.NODES if kind in NODE_KINDS else ActiveType.EDGES for kind in ALL}
 
 
 @pytest.fixture(scope="function")
@@ -26,6 +33,11 @@ def graph() -> ig.Graph:
     return g
 
 
+@pytest.fixture(scope="module")
+def kind_mapping():
+    return KIND_MAPPING
+
+
 def test_centrality_raises_on_unknown_type(graph: ig.Graph):
     with pytest.raises(TidygraphValueError):
         tg = Tidygraph(graph=graph)
@@ -34,50 +46,64 @@ def test_centrality_raises_on_unknown_type(graph: ig.Graph):
 
 @pytest.mark.parametrize(
     "how,inputs",
-    [
-        pytest.param(
-            "degree",
-            {"what": "something"},
-        )
-    ],
+    [pytest.param(kind, {"what": "something"}, id=f"{kind} fails on unknown arg") for kind in ALL],
 )
-def test_centrality_fails_on_unknown_args(graph: ig.Graph, how: Literal["degree", "alpha"], inputs: dict[str, Any]):
+def test_centrality_fails_on_unknown_args(
+    graph: ig.Graph, kind_mapping: dict[str, ActiveType], how: CentralityKind, inputs: dict[str, Any]
+):
     with pytest.raises(TidygraphValueError):
         tg = Tidygraph(graph=graph)
-        _ = tg.activate(ActiveType.NODES).centrality(how=how, **inputs)
+        active = kind_mapping[how]
+        _ = tg.activate(active).centrality(how=how, **inputs)
 
 
 @pytest.mark.parametrize(
-    "how,weights_func", [pytest.param("degree", lambda x: pd.Series([1.0] * 4), id="degree with weights")]
+    "how,weights_func",
+    [pytest.param(kind, lambda x: pd.Series([1.0] * 4), id=f"{kind} accepts weights param") for kind in ALL],
 )
 def test_centrality_accepts_custom_weights(
-    graph: ig.Graph, how: Literal["degree", "alpha"], weights_func: Callable[[pd.DataFrame], pd.Series]
+    graph: ig.Graph,
+    kind_mapping: dict[str, ActiveType],
+    how: CentralityKind,
+    weights_func: Callable[[pd.DataFrame], pd.Series],
 ):
     tg = Tidygraph(graph=graph)
-    actual = tg.activate(ActiveType.NODES).centrality(how=how, weights=weights_func)
+    active = kind_mapping[how]
+    actual = tg.activate(active).centrality(how=how, weights=weights_func)
     actual_len = len(actual) if isinstance(actual, list) else 1
     assert actual_len == 4
 
 
 @pytest.mark.parametrize(
-    "how,input",
+    "how",
+    [pytest.param(kind, id=f"{kind} requires {KIND_MAPPING[kind]}") for kind in ALL],
+)
+def test_centrality_requires_correct_activation(
+    graph: ig.Graph, kind_mapping: dict[str, ActiveType], how: CentralityKind
+):
+    with pytest.raises(TidygraphValueError):
+        kind = kind_mapping[how]
+        wrong = ActiveType.EDGES if kind == ActiveType.NODES else ActiveType.NODES
+        tg = Tidygraph(graph=graph)
+        _ = tg.activate(wrong).centrality(how=how)
+
+
+@pytest.mark.parametrize(
+    "how,expected",
     [
         pytest.param(
-            "degree",
-            ActiveType.EDGES,
-            id="degree requires nodes",
+            kind,
+            4.0,
+            id=f"{kind} returns expected length",
         )
+        for kind in ALL
     ],
 )
-def test_centrality_requires_correct_activation(graph: ig.Graph, how: Literal["degree", "alpha"], input: ActiveType):
-    with pytest.raises(TidygraphValueError):
-        tg = Tidygraph(graph=graph)
-        _ = tg.activate(input).centrality(how=how)
-
-
-@pytest.mark.parametrize("how,expected", [pytest.param("degree", 4.0, id="degree")])
-def test_centrality_returns_expected_len(graph: ig.Graph, how: str, expected: float):
+def test_centrality_returns_expected_len(
+    graph: ig.Graph, kind_mapping: dict[str, ActiveType], how: str, expected: float
+):
     tg = Tidygraph(graph=graph)
-    actual = tg.centrality(how=how)
+    active = kind_mapping[how]
+    actual = tg.activate(active).centrality(how=how)
     actual_len = len(actual) if isinstance(actual, list) else 1
     assert actual_len == expected, f"Expected {how} results to have {expected} items but got {actual}"

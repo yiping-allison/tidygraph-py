@@ -39,9 +39,9 @@ The main editor of choice is [VSCode](https://code.visualstudio.com/download). R
 
 If everything is set up correctly, the environment should just work!
 
-### 🚑️ FAQ
+## 🚑️ FAQ
 
-#### Nix, Python, and VSCode
+### Nix, Python, and VSCode
 
 Unfortunately VSCode does not have a programmatic way to set which python interpreter to use. Because the python environment is managed by nix, and nix installs/builds
 packages in a non-standard location, VSCode can not auto-detect where your packages are.
@@ -62,10 +62,17 @@ Update the interpreter path in VSCode's python language settings.
 > [!TIP]
 > You can find the modal quickly using the command palette and searching `Python: Select Interpreter`.
 
-#### Is `Tidygraph` thread-safe?
+### Is `Tidygraph` thread-safe?
 
 No. Tidygraph is built on top of `igraph`, which the core C library is inherently not thread-safe.
 See [official response](https://github.com/igraph/python-igraph/issues/866) for details.
+
+## 👥 Acknowledgements
+
+This library would not have been possible without existing work from dedicated teams:
+
+- [`python-igraph`](https://github.com/igraph/python-igraph)
+- [`tidygraph`](https://github.com/thomasp85/tidygraph/tree/main)
 
 ## 🔨 TODO
 

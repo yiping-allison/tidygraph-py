@@ -11,6 +11,13 @@ from narwhals.typing import IntoDataFrame
 from tidygraph._utils import (
     RESERVED_JOIN_KEYWORD,
     ReservedGraphKeywords,
+    centrality_betweenness,
+    centrality_closeness,
+    centrality_degree,
+    centrality_edge_betweenness,
+    centrality_eigenvector,
+    centrality_harmonic,
+    centrality_pagerank,
     inner_join,
     is_forest,
     is_tree,
@@ -18,11 +25,14 @@ from tidygraph._utils import (
     outer_join,
     right_join,
 )
-from tidygraph._utils.centrality import centrality_degree
 from tidygraph.activate import ActiveState, ActiveType
 from tidygraph.exceptions import TidygraphError, TidygraphValueError
 
 __all = ["Tidygraph"]
+
+CentralityKind = Literal[
+    "degree", "harmonic", "betweenness", "edge_betweenness", "closeness", "eigenvector", "pagerank"
+]
 
 
 class Tidygraph:
@@ -86,7 +96,7 @@ class Tidygraph:
         """
         return self._graph.get_edge_dataframe()
 
-    def degree(self, *args: int | list[int], **kwargs: str | bool) -> int | list[int]:
+    def degree(self, *args: int | list[int], **kwargs: object) -> int | list[int]:
         """Calculates the degrees associated with the specified vertices.
 
         View the referenced `igraph` documentation for detailed notes.
@@ -113,16 +123,16 @@ class Tidygraph:
         """
         return self._graph.degree(*args, **kwargs)
 
-    def centrality(self, how: Literal["degree", "alpha"], **kwargs: object) -> float | list[float]:
+    def centrality(self, how: CentralityKind, **kwargs: object) -> float | list[float]:
         """Calculate node and edge centrality.
 
         The "centrality" of a node measures the importance for it within the network.
-        This method is a wrapper that exposes different centrality implementations.
+        This method is a wrapper that exposes different centrality functions.
 
         Args:
             how (str): Which centrality measure to calculate.
-            kwargs (dict[str, Any]): Other parameters that can be passed to centrality function. Accepted \
-                parameters differ depending on chosen mode.
+            kwargs (dict[str, Any]): Other parameters that can be passed to target centrality function. Accepted \
+                parameters differ depending on chosen variant.
 
         Returns:
             Either a float or list of floats representing calculated centrality.
@@ -130,7 +140,15 @@ class Tidygraph:
         References:
             - https://tidygraph.data-imaginist.com/reference/centrality.html
         """
-        dispatcher = {"degree": centrality_degree}
+        dispatcher = {
+            "degree": centrality_degree,
+            "harmonic": centrality_harmonic,
+            "betweenness": centrality_betweenness,
+            "edge_betweenness": centrality_edge_betweenness,
+            "closeness": centrality_closeness,
+            "eigenvector": centrality_eigenvector,
+            "pagerank": centrality_pagerank,
+        }
         func = dispatcher.get(how)
         if not func:
             raise TidygraphValueError(f"unsupported centrality method: {how}")
