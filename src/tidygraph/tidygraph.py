@@ -1,7 +1,7 @@
 """tidygraph module providing Tidygraph class for igraph graphs."""
 
 from collections.abc import Iterable
-from typing import Any, Callable, Literal
+from typing import Any, Literal
 
 import igraph as ig
 import narwhals as nw
@@ -165,21 +165,23 @@ class Tidygraph:
 
         return self
 
-    def mutate(self, **kwargs: Callable[[pd.DataFrame], None]) -> "Tidygraph":
+    def mutate(self, **kwargs: object) -> "Tidygraph":
         """Mutate the graph attributes.
 
-        This method uses `pandas.DataFrame.assign` under the hood to perform mutations. Hence, the callable mapped to
-        each key in `kwargs` should follow the same guidelines.
+        This method uses `pandas.DataFrame.assign` under the hood to perform mutations.
 
         Args:
             **kwargs: A variable number of keyword arguments representing the columns to modify/add and their \
-                corresponding modifications.
+                corresponding modifications. Follows `pandas.assign` [1].
 
         Example:
             ```python
             tg = Tidygraph.from_dataframe(edges_df, nodes_df)
             tg.activate(ActiveType.NODES).mutate(new_attr=lambda x: x["weights"] * 2)
             ```
+
+        References:
+            [1] https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.assign.html#pandas.DataFrame.assign
         """
         # NOTE: We do not create a copy here since these dataframes are exported from igraph. (i.e., modification does
         #       NOT mutate the original igraph object)

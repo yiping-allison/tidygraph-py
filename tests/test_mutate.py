@@ -118,7 +118,7 @@ class _Expected:
 def test_simple_mutate_edges(
     nodes: pl.DataFrame,
     edges: pl.DataFrame,
-    mutations: dict[str, Callable[[pd.DataFrame], None]],
+    mutations: dict[str, Callable[[pd.DataFrame], pd.Series]],
     expected: _Expected,
 ):
     tg = Tidygraph.from_dataframe(edges=edges, nodes=nodes)
@@ -214,7 +214,7 @@ def test_simple_mutate_edges(
 def test_simple_mutate_nodes(
     nodes: pl.DataFrame,
     edges: pl.DataFrame,
-    mutations: dict[str, Callable[[pd.DataFrame], None]],
+    mutations: dict[str, Callable[[pd.DataFrame], pd.Series]],
     expected: _Expected,
 ):
     tg = Tidygraph.from_dataframe(edges=edges, nodes=nodes)
