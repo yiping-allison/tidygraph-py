@@ -41,7 +41,7 @@
           };
 
           # ! NOTE: projectName and version must match values in pyproject.toml
-          config = (pkgs.lib.importTOML ./pyproject.toml);
+          config = pkgs.lib.importTOML ./pyproject.toml;
           projectName = config.project.name;
           version = config.project.version;
 
