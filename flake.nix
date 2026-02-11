@@ -83,7 +83,7 @@
                 fileset = pkgs.lib.fileset.unions [
                   ./pyproject.toml
                   ./README.md
-                  ./src/tidygraph/__init__.py
+                  ./src/${projectName}/__init__.py
                 ];
               };
             });

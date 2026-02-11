@@ -33,20 +33,20 @@ I recommend installing nix using either options:
 > choose to install from Determinate Nix if you prefer the [additional functionalities](https://determinate.systems/blog/installer-dropping-upstream/)
 > provided by the Determinate Nix team, otherwise, use the experimental installer for upstream.
 
-Additionally you will need [`direnv`](https://direnv.net/) and [`nix-direnv`](https://github.com/nix-community/nix-direnv?tab=readme-ov-file).
+Additionally, you will need [`direnv`](https://direnv.net/) and [`nix-direnv`](https://github.com/nix-community/nix-direnv?tab=readme-ov-file).
 
 Most (if not all) `nix` development workflows use direnv to auto-load the nix shell environment.
 
 The main editor of choice is [VSCode](https://code.visualstudio.com/download). Recommended extensions are included in the [workspace](./tidygraph.code-workspace) file.
 
-If everything is set up correctly, the environment should just work!
+The environment should just work if everything is setup correctly!
 
 ## 🚑️ FAQ
 
 ### Nix, Python, and VSCode
 
 Unfortunately VSCode does not have a programmatic way to set which python interpreter to use. Because the python environment is managed by nix, and nix installs/builds
-packages in a non-standard location, VSCode can not auto-detect where your packages are.
+packages in a non-standard location, VSCode cannot auto-detect where your packages are.
 
 You will need to update the python interpreter path whenever your nix shell environment updates.
 
