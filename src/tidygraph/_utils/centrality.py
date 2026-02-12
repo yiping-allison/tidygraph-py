@@ -19,8 +19,9 @@ def centrality_degree(
     Args:
         weights (Callable[[pd.DataFrame], pd.Series], Optional): A function that when given the edges \
             DataFrame, returns a pandas series representing custom edge weights.
-        mode (str, Optional): `in`, `out`, or `all` representing the type of degree to be returned.
-        loops (bool, Optional): Whether to count self-loops.
+        mode (str, Optional): `in`, `out`, or `all` representing the type of degree to be returned. \
+            Defaults to `all`.
+        loops (bool, Optional): Whether to count self-loops. Defaults to True.
 
     Returns:
         float or list of float representing calculated centrality.
@@ -67,10 +68,12 @@ def centrality_harmonic(
         weights (Callable[[pd.DataFrame]. pd.Series], Optional): A function that when given the edges \
             DataFrame, returns a pandas series representing custom edge weights.
         mode (str, Optional): `in`, `out`, or `all`. `in` is the length of incoming paths, `out` is the length \
-            of outgoing paths, and `all` means both should be calculated.
-        cutoff (float, Optional): When not `None`, only paths less than or equal to this length are considered.
+            of outgoing paths, and `all` means both should be calculated. Defaults to `all`.
+        cutoff (float, Optional): When not `None`, only paths less than or equal to this length are considered. \
+            Defaults to None.
         normalized (bool, Optional): Whether to normalize the result. If True, the result is the mean inverse path \
-            length to other vertices. If False, the result is the sum of inverse path lengths to other vertices.
+            length to other vertices. If False, the result is the sum of inverse path lengths to other vertices. \
+            Defaults to True.
 
     Returns:
         The calculated harmonic centralities in a list.

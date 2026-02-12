@@ -1,7 +1,31 @@
+from typing import Any
+
 import igraph as ig
 import pytest
 
 from tidygraph import Tidygraph
+
+
+@pytest.fixture(scope="function", params=["directed", "undirected"])
+def graph(request) -> ig.Graph:
+    kind = request.param
+    n = 4
+    edges = [
+        (0, 1),
+        (0, 2),
+        (1, 3),
+        (2, 3),
+    ]
+    max = 26  # assume we have max of 26 nodes
+    start = ord("a")
+    g = ig.Graph(
+        n=n,
+        edges=edges,
+        directed=(kind == "directed"),
+        vertex_attrs={"name": [chr(start + (char % max)) for char in range(n)]},
+    )
+
+    return g
 
 
 @pytest.mark.parametrize(
@@ -76,3 +100,12 @@ def test_describe(nodes, edges, directed, expected):
     tidygraph = Tidygraph(graph=g)
     description = tidygraph.describe()
     assert description == expected
+
+
+@pytest.mark.parametrize(
+    "method,args", [pytest.param("degree", {"mode": "out"}), pytest.param("components", {"mode": "weak"})]
+)
+def test_proxy_to_igraph_succeeds(graph: ig.Graph, method: str, args: dict[str, Any]):
+    tg = Tidygraph(graph=graph)
+    func = getattr(tg, method)
+    _ = func(**args)

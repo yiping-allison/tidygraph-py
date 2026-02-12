@@ -123,6 +123,21 @@ class Tidygraph:
         """
         return self._graph.degree(*args, **kwargs)
 
+    def components(self, mode: Literal["strong", "weak"] = "strong") -> ig.VertexClustering:
+        """Calculates the (strong or weak) connected components for the graph.
+
+        Args:
+            mode (Literal["strong", "weak"]): Whether to calculate strong or weak components. \
+                Defaults to `strong`.
+
+        Returns:
+            An igraph VertexClustering object.
+
+        References:
+            [1] https://python.igraph.org/en/1.0.0/api/igraph.Graph.html#components
+        """
+        return self._graph.components(mode=mode)
+
     def centrality(self, how: CentralityKind, **kwargs: object) -> float | list[float]:
         """Calculate node and edge centrality.
 
