@@ -66,12 +66,15 @@ def outer_join(
         x_tmp = x_tmp.merge(y, how="outer", on=on, suffixes=(lsuffix, rsuffix))
 
     x_tmp.dropna(axis=1, how="all", inplace=True)
-    new_rows = x_tmp["_index"].isna()
+    new_row_indices = x_tmp["_index"].isna()
+    new_rows = x_tmp[new_row_indices]
+    x_tmp = x_tmp[~new_row_indices]
+    x_tmp = pd.concat([x_tmp, new_rows])
     x_tmp.drop(columns=["_index"], inplace=True)
     if active == ActiveType.NODES:
-        g.add_vertices(new_rows.sum())
+        g.add_vertices(len(new_rows))
     elif active == ActiveType.EDGES:
-        new_edges = x_tmp.loc[new_rows, ["source", "target"]].to_numpy()
+        new_edges = new_rows[["source", "target"]].to_numpy()
         g.add_edges(new_edges)
 
     _apply_attributes(active, g, x_tmp)
@@ -244,11 +247,14 @@ def right_join(
         new_x_tmp.dropna(subset=new_x_tmp.columns.difference(["_index"]), inplace=True)
         to_remove = x_tmp.merge(y, how="left_anti", on=on, suffixes=(lsuffix, rsuffix)).dropna(axis=1, how="all")
 
-    new_rows = new_x_tmp["_index"].isna()
+    new_row_indices = new_x_tmp["_index"].isna()
+    new_rows = new_x_tmp[new_row_indices]
+    new_x_tmp = new_x_tmp[~new_row_indices]
+    new_x_tmp = pd.concat([new_x_tmp, new_rows])
     if active == ActiveType.NODES:
         if not to_remove.empty:
             g.delete_vertices(to_remove.index.to_numpy())
-        g.add_vertices(new_rows.sum())
+        g.add_vertices(len(new_rows))
     elif active == ActiveType.EDGES:
         if not to_remove.empty:
             source = to_remove["source"].to_numpy()
@@ -256,7 +262,7 @@ def right_join(
             edges = tuple(zip(source, target, strict=True))
             g.delete_edges(edges)
 
-        new_edges = new_x_tmp.loc[new_rows, ["source", "target"]].to_numpy()
+        new_edges = new_rows[["source", "target"]].to_numpy()
         g.add_edges(new_edges)
 
     new_x_tmp.drop(columns=["_index"], inplace=True)
