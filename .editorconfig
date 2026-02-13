@@ -1,24 +1,16 @@
 root = true
 
 [*]
-charset = utf-8
 end_of_line = lf
 insert_final_newline = true
 trim_trailing_whitespace = true
 indent_style = space
-indent_size = 4
-
-[*.json*]
-indent_size = 2
-
-[*.toml]
-indent_size = 2
-
-[*.yaml]
-indent_size = 2
 
 [.prettierrc]
 indent_size = 2
 
-[*.code-workspace]
+[*.{code-workspace,json*,md,toml,yaml}]
 indent_size = 2
+
+[*.{md,py}]
+charset = utf-8
