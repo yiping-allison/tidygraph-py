@@ -1,7 +1,7 @@
 # https://peps.python.org/pep-0621/-
 [project]
 name = "tidygraph"
-version = "0.2.3"
+version = "0.2.4"
 description = "tidy-like interface for network manipulation and visualization in Python"
 readme = "README.md"
 requires-python = ">=3.13"
