@@ -54,18 +54,25 @@ def outer_join(
             x_tmp = x_tmp.merge(y_with_mirror, how="left", on=on, suffixes=(lsuffix, rsuffix)).dropna(axis=1, how="all")
             edgelist_mirror = x_tmp.rename(columns={"source": "target", "target": "source"})
             edgelist_with_mirror = pd.concat([x_tmp, edgelist_mirror], ignore_index=True)
-            # drop reserved columns from y since they are duplicate and are not needed in merge result
-            y.drop(columns=[col for col in ReservedGraphKeywords.EDGES if col not in [*on, "node ID"]], inplace=True)
-            x_tmp_new = edgelist_with_mirror.merge(y, how="right_anti", on=on, suffixes=(lsuffix, rsuffix)).dropna(
-                axis=1, how="all"
+            y_with_indicator = y.merge(
+                edgelist_with_mirror, how="left", on=on, suffixes=(lsuffix, rsuffix), indicator=True
             )
-            x_tmp = pd.concat([x_tmp, x_tmp_new], ignore_index=True)
+            new_y_rows = y_with_indicator["_merge"] == "left_only"
+            new_rows = y.loc[new_y_rows]
+            x_tmp = pd.concat([x_tmp, new_rows], ignore_index=True)
         else:
-            x_tmp = x_tmp.merge(y, how="outer", on=on, suffixes=(lsuffix, rsuffix))
+            x_tmp = x_tmp.merge(y, how="left", on=on, suffixes=(lsuffix, rsuffix))
+            y_with_indicator = y.merge(x_tmp, how="left", on=on, suffixes=(lsuffix, rsuffix), indicator=True)
+            new_y_rows = y_with_indicator["_merge"] == "left_only"
+            new_rows = y.loc[new_y_rows]
+            x_tmp = pd.concat([x_tmp, new_rows])
     else:
-        x_tmp = x_tmp.merge(y, how="outer", on=on, suffixes=(lsuffix, rsuffix))
+        x_tmp = x_tmp.merge(y, how="left", on=on, suffixes=(lsuffix, rsuffix))
+        y_with_indicator = y.merge(x_tmp, how="left", on=on, suffixes=(lsuffix, rsuffix), indicator=True)
+        new_y_rows = y_with_indicator["_merge"] == "left_only"
+        new_rows = y.loc[new_y_rows]
+        x_tmp = pd.concat([x_tmp, new_rows])
 
-    x_tmp.dropna(axis=1, how="all", inplace=True)
     new_row_indices = x_tmp["_index"].isna()
     new_rows = x_tmp[new_row_indices]
     x_tmp = x_tmp[~new_row_indices]
@@ -288,4 +295,4 @@ def _apply_attributes(
         if col in reserved:
             continue
 
-        target[col] = data[col]
+        target[col] = data[col].to_numpy()
