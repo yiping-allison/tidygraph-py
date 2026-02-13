@@ -103,7 +103,13 @@ def test_describe(nodes, edges, directed, expected):
 
 
 @pytest.mark.parametrize(
-    "method,args", [pytest.param("degree", {"mode": "out"}), pytest.param("components", {"mode": "weak"})]
+    "method,args",
+    [
+        pytest.param("degree", {"mode": "out"}),
+        pytest.param("components", {"mode": "weak"}),
+        pytest.param("layout", {"layout": "star"}),
+        pytest.param("plot", {"backend": "cairo"}),
+    ],
 )
 def test_proxy_to_igraph_succeeds(graph: ig.Graph, method: str, args: dict[str, Any]):
     tg = Tidygraph(graph=graph)

@@ -66,7 +66,19 @@
           hacks = pkgs.callPackage pyproject-nix.build.hacks {};
 
           # Add additional build overrides
-          overrides = final: prev: {};
+          overrides = final: prev: {
+            cairocffi = hacks.nixpkgsPrebuilt {
+              from = pythonPackages.cairocffi;
+              prev = prev.cairocffi;
+            };
+
+            # ! NOTE: This does not match the same version required by pyproject.toml
+            # See https://github.com/NixOS/nixpkgs/blob/nixos-25.11/pkgs/development/python-modules/kaleido/default.nix#L96.
+            kaleido = hacks.nixpkgsPrebuilt {
+              from = pythonPackages.kaleido;
+              prev = prev.kaleido;
+            };
+          };
 
           pythonSet = (pkgs.callPackage pyproject-nix.build.packages {inherit python;}).overrideScope (
             pkgs.lib.composeManyExtensions [

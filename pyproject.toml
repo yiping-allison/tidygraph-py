@@ -1,7 +1,7 @@
 # https://peps.python.org/pep-0621/-
 [project]
 name = "tidygraph"
-version = "0.2.4"
+version = "0.3.4"
 description = "tidy-like interface for network manipulation and visualization in Python"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -26,6 +26,18 @@ dependencies = [
   "pandas>=3.0.0",
 ]
 
+[project.optional-dependencies]
+cairo = [
+  "cairocffi==1.7.1",
+]
+matplotlib = [
+  "matplotlib==3.10.5",
+]
+plotly = [
+  "kaleido>=1.2.0",
+  "plotly>=6.5.2",
+]
+
 # Do NOT put runtime dependencies here. These libraries will not be included when
 # the package "deploys".
 [dependency-groups]
@@ -34,6 +46,7 @@ dev = [
   "ruff>=0.14.13",
 ]
 test = [
+  "cairocffi>=1.7.1",
   "polars[pandas]>=1.37.1",
   "pytest>=9.0.2",
   "pytest-cov>=7.0.0",

@@ -19,6 +19,22 @@ tg.activate(ActiveType.EDGES).join(..., how="outer").mutate({"rank": lambda x: 1
 > [!IMPORTANT]
 > This library is experimental, and updates may be infrequent. Use at your own risk.
 
+## 📦️ Installation
+
+This package is available on [PyPI](https://pypi.org/project/tidygraph/).
+
+You can install plot backends (`cairo`, `matplotlib`, or `plotly`) using the `extras` option.
+
+```sh
+# Base
+pip install tidygraph
+uv add tidygraph
+
+# With plot support
+pip install "tidygraph[cairo]"
+uv add tidygraph --optional cairo
+```
+
 ## 🧑‍💻 Development
 
 The easiest way to get started with development is through [`nix`](https://nixos.org/) and related ecosystem tools.

@@ -1,11 +1,15 @@
 """tidygraph module providing Tidygraph class for igraph graphs."""
 
+from __future__ import annotations
+
 from collections.abc import Iterable
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import igraph as ig
 import narwhals as nw
 import pandas as pd
+from igraph.drawing import BoundingBox
+from igraph.drawing.cairo.plot import CairoPlot
 from narwhals.typing import IntoDataFrame
 
 from tidygraph._utils import (
@@ -27,6 +31,10 @@ from tidygraph._utils import (
 )
 from tidygraph.activate import ActiveState, ActiveType
 from tidygraph.exceptions import TidygraphError, TidygraphValueError
+
+if TYPE_CHECKING:
+    from matplotlib.axes import Axes
+    from plotly.graph_objects import Figure
 
 __all = ["Tidygraph"]
 
@@ -338,6 +346,54 @@ class Tidygraph:
             description.append(f"with {components} component(s)")
 
         return " ".join(description)
+
+    def layout(self, layout: Any = None, *args: tuple[Any], **kwargs: dict[str, Any]) -> ig.Layout:
+        """Returns the layout of the graph according to the layout algorithm.
+
+        This method is a proxy to `igraph.Graph.layout` [1].
+
+        Args:
+            layout (str, Callable[[], ig.Layout | list[list[float]]]): The layout to use. This can be a registered \
+                layout name, or a callable which returns either a Layout object or a list of lists \
+                containing the coordinates. If None, uses the value of `plotting.layout` \
+                configuration key.
+            *args: Other supported arguments.
+            **kwargs: Other supported keyword arguments.
+
+        Returns:
+            A `Layout` object [2].
+
+        References:
+            [1] https://python.igraph.org/en/1.0.0/api/igraph.Graph.html#layout
+            [2] https://python.igraph.org/en/1.0.0/api/igraph.layout.Layout.html
+        """
+        if layout is not None:
+            kwargs = kwargs | {"layout": layout}
+
+        return self._graph.layout(*args, **kwargs)
+
+    def plot(
+        self,
+        target: str | None = None,
+        bbox: tuple[int, int] | tuple[int, int, int, int] | BoundingBox = (0, 0, 600, 600),
+        *args: tuple[Any],
+        **kwargs: dict[str, Any],
+    ) -> CairoPlot | Axes | Figure:
+        """Plots the graph to the given target [1].
+
+        Args:
+            target (matplotlib.axes.Axes | str | cairo.Surface | None): The target where the object \
+                should be plotted. `str` is expected to represent the file name where the plot will \
+                be saved to. Defaults to None. If None: cairo backend - no plotting performed, returns \
+                CairoPlot; matplotlib backend - returns Axes object; plotly backend - returns Figure object.
+            bbox: The bounding box of the plot.
+            *args: Additional arguments.
+            **kwargs: Additional keyword arguments.
+
+        References:
+            [1] https://python.igraph.org/en/1.0.0/api/igraph.drawing.html#plot
+        """
+        return ig.plot(self._graph, target, bbox, *args, **kwargs)
 
     @classmethod
     def from_dataframe(cls, edges: IntoDataFrame, nodes: IntoDataFrame, directed: bool = False) -> "Tidygraph":
