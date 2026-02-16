@@ -22,5 +22,8 @@
   },
   "[nix]": {
     "editor.formatOnSave": false
+  },
+  "[python]": {
+    "editor.formatOnSave": false
   }
 }

@@ -1,5 +1,4 @@
-from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 import igraph as ig
 import numpy as np
@@ -11,29 +10,27 @@ from tidygraph._utils import RESERVED_JOIN_KEYWORD, ReservedGraphKeywords
 from tidygraph.activate import ActiveType
 from tidygraph.exceptions import TidygraphValueError
 
-
-@pytest.fixture(scope="module", params=["with_attrs", "no_attrs"])
-def graph_base(request):
-    """Returns pre-generated vertices and edges pairs for tests dependent on existing attributes flag."""
-    kind = request.param
-    vertices = ["a", "b", "c"]
-    edges = [("a", "b"), ("b", "c")]
-    if kind == "no_attrs":
-        return vertices, edges, None
-
-    attrs = {"color": [f"attr_{i}" for i in range(len(edges))]}
-
-    return vertices, edges, attrs
+N: int = 4
 
 
 @pytest.fixture(scope="function", params=["directed", "undirected"])
-def graph(request, graph_base: tuple[list[str], list[tuple[str, str, dict[str, str] | None]]]) -> ig.Graph:
+def graph(request) -> ig.Graph:
+    """Creates a sample diamond graph for tests."""
     kind = request.param
-    g = ig.Graph(directed=(kind == "directed"))
-    vertices, edges, attrs = graph_base
-    attrs = attrs or {}
-    g.add_vertices(vertices)
-    g.add_edges(edges, attrs)
+    edges = [
+        (0, 1),
+        (0, 2),
+        (1, 3),
+        (2, 3),
+    ]
+    max = 26  # assume we have max of 26 nodes
+    start = ord("a")
+    g = ig.Graph(
+        n=N,
+        directed=(kind == "directed"),
+        edges=edges,
+        vertex_attrs={"name": [chr(start + (char % max)) for char in range(N)]},
+    )
 
     return g
 
@@ -58,776 +55,600 @@ def test_invalid_input_raises(active_type: ActiveType, graph: ig.Graph) -> None:
         )
 
 
-@dataclass
-class _Expected:
-    directed: dict[str, Any] = field(default_factory=dict)
-    undirected: dict[str, Any] = field(default_factory=dict)
-
-
 @pytest.mark.parametrize(
-    "y,expected_set",
+    "y,expected",
     [
         pytest.param(
             pd.DataFrame(
                 {
-                    "name": ["a", "b", "c", "d"],
+                    "name": ["e"],
                 }
             ),
-            _Expected(
-                undirected={
-                    "num_nodes": 4,
-                    "names": ["a", "b", "c", "d"],
+            {
+                "num_vertices": 5,
+                "attributes": {
+                    "name": pd.Series(["a", "b", "c", "d", "e"]),
                 },
-            ),
-            id="new nodes",
+            },
+            id="add new node",
         ),
         pytest.param(
             pd.DataFrame(
                 {
                     "name": ["a", "b"],
+                    "new_attr": ["hello", "world"],
                 }
             ),
-            _Expected(
-                undirected={
-                    "num_nodes": 3,
-                    "names": ["a", "b", "c"],
+            {
+                "num_vertices": 4,
+                "attributes": {
+                    "name": pd.Series(["a", "b", "c", "d"]),
+                    "new_attr": pd.Series(["hello", "world", np.nan, np.nan]),
                 },
-            ),
-            id="no new nodes",
+            },
+            id="new attr to existing nodes",
         ),
         pytest.param(
             pd.DataFrame(
                 {
-                    "name": ["a", "b", "c"],
-                    "color": ["red", "blue", "green"],
+                    "name": ["a", "b", "a"],
+                    "new_attr": ["hello", "world", "!"],
                 }
             ),
-            _Expected(
-                undirected={
-                    "num_nodes": 3,
-                    "names": ["a", "b", "c"],
-                    "attributes": {
-                        "a": {"color": "red"},
-                        "b": {"color": "blue"},
-                        "c": {"color": "green"},
-                    },
+            {
+                "num_vertices": 5,
+                "attributes": {
+                    "name": pd.Series(["a", "b", "c", "d", "a"]),
+                    "new_attr": pd.Series(["hello", "world", np.nan, np.nan, "!"]),
                 },
-            ),
-            id="new node attributes",
+            },
+            id="cartesian creates exploded nodes",
         ),
     ],
 )
-def test_outer_join_node(graph: ig.Graph, y: pd.DataFrame, expected_set: _Expected) -> None:
+def test_outer_join_nodes(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, Any]) -> None:
     tg = Tidygraph(graph=graph).activate(ActiveType.NODES).join(y, how="outer")
 
-    vertex_df = tg.vertex_dataframe
+    node_df = tg.vertex_dataframe
 
-    # We do not separate by undirected vs undirected graphs since nodes are the same in both cases
-    expected = expected_set.undirected
+    assert len(node_df) == expected["num_vertices"]
 
-    assert vertex_df["name"].count() == expected["num_nodes"]
-
-    if "attributes" not in expected:
-        return
-
-    expected_attrs = pd.DataFrame(expected["attributes"]).transpose().reset_index(drop=True)
-    attr_cols = [col for col in expected_attrs.columns if col not in ReservedGraphKeywords.NODES]
-    actual_attrs = vertex_df[attr_cols].reset_index(drop=True)
-
-    pd.testing.assert_frame_equal(actual_attrs, expected_attrs)
+    expected_attributes = expected["attributes"]
+    attr_cols = [col for col in node_df.columns if col not in ReservedGraphKeywords.NODES]
+    assert len(attr_cols) == len(expected_attributes.keys())
+    for col, expected_attr in expected_attributes.items():
+        assert expected_attr.equals(node_df[col])
 
 
 @pytest.mark.parametrize(
-    "y,expected_set",
+    "y,expected",
     [
         pytest.param(
             pd.DataFrame(
                 {
-                    "from": ["a", "b", "c"],
-                    "to": ["b", "c", "a"],
+                    "from": ["a"],
+                    "to": ["d"],
                 }
             ),
-            _Expected(
-                directed={
-                    "expected_edges": 3,
-                },
-                undirected={
-                    "expected_edges": 3,
-                },
-            ),
-            id="one new edge",
-        ),
-        pytest.param(
-            pd.DataFrame(
-                {
-                    "from": ["a", "b"],
-                    "to": ["b", "c"],
-                }
-            ),
-            _Expected(
-                directed={
-                    "expected_edges": 2,
-                },
-                undirected={
-                    "expected_edges": 2,
-                },
-            ),
-            id="no new edges",
-        ),
-        pytest.param(
-            pd.DataFrame(
-                {
-                    "from": ["a", "c"],
-                    "to": ["b", "b"],
-                }
-            ),
-            _Expected(
-                directed={
-                    "expected_edges": 3,
-                },
-                undirected={
-                    "expected_edges": 2,
-                },
-            ),
-            id="reverse edge pair",
+            {
+                "num_edges": 5,
+                "attributes": {},
+            },
+            id="add new edge",
         ),
         pytest.param(
             pd.DataFrame(
                 {
                     "from": ["a"],
                     "to": ["b"],
-                    "weight": [1.5],
+                    "new_attr": ["hello"],
                 }
             ),
-            _Expected(
-                directed={
-                    "expected_edges": 2,
-                    "attributes": [
-                        {"from": "a", "to": "b", "weight": 1.5},
-                        {"from": "b", "to": "c", "weight": np.nan},
-                    ],
+            {
+                "num_edges": 4,
+                "attributes": {
+                    "new_attr": pd.Series(["hello", np.nan, np.nan, np.nan]),
                 },
-                undirected={
-                    "expected_edges": 2,
-                    "attributes": [
-                        {"from": "a", "to": "b", "weight": 1.5},
-                        {"from": "b", "to": "c", "weight": np.nan},
-                    ],
-                },
-            ),
-            id="with attribute on existing edge",
+            },
+            id="with attrs on existing edges",
         ),
         pytest.param(
             pd.DataFrame(
                 {
-                    "from": ["c"],
-                    "to": ["a"],
-                    "weight": [2.5],
+                    "from": ["a", "a"],
+                    "to": ["b", "b"],
+                    "new_attr": ["hello", "!"],
                 }
             ),
-            _Expected(
-                directed={
-                    "expected_edges": 3,
-                    "attributes": [
-                        {"from": "c", "to": "a", "weight": 2.5},
-                        {"from": "a", "to": "b", "weight": np.nan},
-                        {"from": "b", "to": "c", "weight": np.nan},
-                    ],
+            {
+                "num_edges": 5,
+                "attributes": {
+                    "new_attr": pd.Series(["hello", np.nan, np.nan, np.nan, "!"]),
                 },
-                undirected={
-                    "expected_edges": 3,
-                    "attributes": [
-                        {"from": "a", "to": "c", "weight": 2.5},
-                        {"from": "a", "to": "b", "weight": np.nan},
-                        {"from": "b", "to": "c", "weight": np.nan},
-                    ],
-                },
-            ),
-            id="with attribute on new edge",
+            },
+            id="cartesian creates exploded edges",
         ),
     ],
 )
-def test_outer_join_edge(graph: ig.Graph, y: pd.DataFrame, expected_set: _Expected) -> None:
-    # record the set of attributes that already exist for easier testing
-    existing_attrs = set(graph.es.attribute_names())
-    existing_edges_df = graph.get_edge_dataframe()
+def test_outer_join_edges(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, Any]) -> None:
+    tg = Tidygraph(graph=graph).activate(ActiveType.EDGES).join(y, how="outer")
 
-    tg = Tidygraph(graph=graph)
-    tg = tg.activate(ActiveType.EDGES).join(y, how="outer")
-    node_df = tg.vertex_dataframe
     edge_df = tg.edge_dataframe
 
-    # augment the edge dataframe with source and target names for easier testing
-    edge_df["from"] = edge_df["source"].map(lambda x: node_df.loc[x, "name"])
-    edge_df["to"] = edge_df["target"].map(lambda x: node_df.loc[x, "name"])
+    assert len(edge_df) == expected["num_edges"]
 
-    expected = expected_set.directed if graph.is_directed() else expected_set.undirected
-
-    assert len(edge_df) == expected["expected_edges"]
-
-    attributes = expected.get("attributes", [])
-    if not attributes:
-        return
-
-    # format our expected set if we are working with existing attributes
-    expected_attrs = pd.DataFrame(attributes).reset_index(drop=True)
-    for attr in expected_attrs.columns:
-        if attr in existing_attrs:
-            # add the value as "y" since we are merging to an existing
-            expected_attrs[f"{attr}.y"] = expected_attrs[attr]
-
-            def edge_attr_for_row(row, attr=attr):
-                source = graph.vs.find(name=row["from"]).index
-                target = graph.vs.find(name=row["to"]).index
-
-                match = existing_edges_df.loc[
-                    (existing_edges_df["source"] == source) & (existing_edges_df["target"] == target)
-                ]
-
-                return match[attr].iloc[0] if not match.empty else np.nan
-
-            expected_attrs[f"{attr}.x"] = expected_attrs.apply(edge_attr_for_row, axis=1)
-
-            expected_attrs.drop(columns=[attr], inplace=True)
-
-    actual_attrs = edge_df.reset_index(drop=True)
-
-    attr_set = expected_attrs.merge(actual_attrs, how="left", on=["from", "to"], suffixes=("_expected", "_actual"))
-
-    attr_cols = [col for col in expected_attrs.columns if col not in ReservedGraphKeywords.EDGES]
-    for col in attr_cols:
-        pd.testing.assert_series_equal(
-            attr_set[f"{col}_expected"],
-            attr_set[f"{col}_actual"],
-            check_index=False,
-            check_names=False,
-        )
+    expected_attributes = expected["attributes"]
+    attr_cols = [col for col in edge_df.columns if col not in ReservedGraphKeywords.EDGES]
+    assert len(attr_cols) == len(expected_attributes.keys())
+    for col, expected_attr in expected_attributes.items():
+        assert expected_attr.equals(edge_df[col])
 
 
 @pytest.mark.parametrize(
-    "y,expected_set",
+    "y,expected",
     [
         pytest.param(
             pd.DataFrame(
                 {
-                    "name": ["b", "c"],
+                    "name": ["a", "b"],
                 }
             ),
-            _Expected(
-                undirected={
-                    "num_nodes": 2,
-                    "names": ["b", "c"],
+            {
+                "num_vertices": 2,
+                "attributes": {
+                    "name": pd.Series(["a", "b"]),
                 },
-            ),
-            id="remove one existing node",
+            },
+            id="inner join drops non-matching nodes",
         ),
         pytest.param(
             pd.DataFrame(
                 {
-                    "name": ["a", "b", "c", "d"],
+                    "name": ["a", "b"],
+                    "new_attr": ["hello", "world"],
                 }
             ),
-            _Expected(
-                undirected={
-                    "num_nodes": 3,
-                    "names": ["a", "b", "c"],
+            {
+                "num_vertices": 2,
+                "attributes": {
+                    "name": pd.Series(["a", "b"]),
+                    "new_attr": pd.Series(["hello", "world"]),
                 },
-            ),
-            id="no change when given extra node",
+            },
+            id="inner join with new attributes",
         ),
         pytest.param(
             pd.DataFrame(
                 {
-                    "name": ["a", "c"],
-                    "color": ["red", "cyan"],
+                    "name": ["a", "a"],
+                    "new_attr": ["hello", "!"],
                 }
             ),
-            _Expected(
-                undirected={
-                    "num_nodes": 2,
-                    "names": ["a", "c"],
-                    "attributes": {
-                        "a": {"color": "red"},
-                        "c": {"color": "cyan"},
-                    },
+            {
+                "num_vertices": 2,
+                "attributes": {
+                    "name": pd.Series(["a", "a"]),
+                    "new_attr": pd.Series(["hello", "!"]),
                 },
-            ),
-            id="node attributes with removal",
+            },
+            id="cartesian creates exploded nodes",
         ),
     ],
 )
-def test_inner_join_node(graph: ig.Graph, y: pd.DataFrame, expected_set: _Expected) -> None:
+def test_inner_join_nodes(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, Any]) -> None:
     tg = Tidygraph(graph=graph).activate(ActiveType.NODES).join(y, how="inner")
 
-    vertex_df = tg.vertex_dataframe
+    node_df = tg.vertex_dataframe
 
-    # We do not separate by undirected vs undirected graphs since nodes are the same in both cases
-    expected = expected_set.undirected
+    assert len(node_df) == expected["num_vertices"]
 
-    assert vertex_df["name"].count() == expected["num_nodes"]
-    assert set(vertex_df["name"]) == set(expected["names"])
-
-    if "attributes" not in expected:
-        return
-
-    expected_attrs = pd.DataFrame(expected["attributes"]).transpose().reset_index(drop=True)
-    attr_cols = [col for col in expected_attrs.columns if col not in ReservedGraphKeywords.NODES]
-    actual_attrs = vertex_df[attr_cols].reset_index(drop=True)
-
-    pd.testing.assert_frame_equal(actual_attrs, expected_attrs)
+    expected_attributes = expected["attributes"]
+    attr_cols = [col for col in node_df.columns if col not in ReservedGraphKeywords.NODES]
+    assert len(attr_cols) == len(expected_attributes.keys())
+    for col, expected_attr in expected_attributes.items():
+        assert expected_attr.equals(node_df[col])
 
 
 @pytest.mark.parametrize(
-    "y,expected_set",
+    "y,expected",
     [
         pytest.param(
             pd.DataFrame(
                 {
-                    "from": ["b", "c"],
-                    "to": ["c", "a"],
+                    "from": ["a"],
+                    "to": ["d"],
                 }
             ),
-            _Expected(
-                directed={
-                    "expected_edges": 1,
-                },
-                undirected={
-                    "expected_edges": 1,
-                },
-            ),
-            id="remove one existing edge",
+            {
+                "num_edges": 0,
+                "attributes": {},
+            },
+            id="inner join drops non-matching edges",
         ),
         pytest.param(
             pd.DataFrame(
                 {
-                    "from": ["a", "b", "c"],
-                    "to": ["b", "c", "a"],
-                    "color": ["red", "blue", "green"],
+                    "from": ["a", "a"],
+                    "to": ["c", "b"],
+                    "new_attr": ["hello", None],
                 }
             ),
-            _Expected(
-                directed={
-                    "expected_edges": 2,
-                    "attributes": [
-                        {"from": "a", "to": "b", "color": "red"},
-                        {"from": "b", "to": "c", "color": "blue"},
-                    ],
+            {
+                "num_edges": 2,
+                "attributes": {
+                    "new_attr": pd.Series([np.nan, "hello"]),
                 },
-                undirected={
-                    "expected_edges": 2,
-                    "attributes": [
-                        {"from": "a", "to": "b", "color": "red"},
-                        {"from": "b", "to": "c", "color": "blue"},
-                    ],
-                },
-            ),
-            id="with attributes",
+            },
+            id="inner join with new attributes",
         ),
         pytest.param(
             pd.DataFrame(
                 {
-                    "from": ["b"],
-                    "to": ["c"],
-                    "color": ["yellow"],
+                    "from": ["a", "a"],
+                    "to": ["b", "b"],
+                    "new_attr": ["hello", "!"],
                 }
             ),
-            _Expected(
-                directed={
-                    "expected_edges": 1,
-                    "attributes": [
-                        {"from": "b", "to": "c", "color": "yellow"},
-                    ],
+            {
+                "num_edges": 2,
+                "attributes": {
+                    "new_attr": pd.Series(["hello", "!"]),
                 },
-                undirected={
-                    "expected_edges": 1,
-                    "attributes": [
-                        {"from": "b", "to": "c", "color": "yellow"},
-                    ],
-                },
-            ),
-            id="single attribute with out of order removal",
+            },
+            id="cartesian creates exploded edges",
         ),
     ],
 )
-def test_inner_join_edge(graph: ig.Graph, y: pd.DataFrame, expected_set: _Expected) -> None:
-    # record the set of attributes that already exist for easier testing
-    existing_attrs = set(graph.es.attribute_names())
-    existing_edges_df = graph.get_edge_dataframe()
+def test_inner_join_edges(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, Any]) -> None:
+    tg = Tidygraph(graph=graph).activate(ActiveType.EDGES).join(y, how="inner")
 
-    tg = Tidygraph(graph=graph)
-    tg = tg.activate(ActiveType.EDGES).join(y, how="inner")
-    node_df = tg.vertex_dataframe
     edge_df = tg.edge_dataframe
 
-    # augment the edge dataframe with source and target names for easier testing
-    edge_df["from"] = edge_df["source"].map(lambda x: node_df.loc[x, "name"])
-    edge_df["to"] = edge_df["target"].map(lambda x: node_df.loc[x, "name"])
+    assert len(edge_df) == expected["num_edges"]
 
-    expected = expected_set.directed if graph.is_directed() else expected_set.undirected
-
-    assert len(edge_df) == expected["expected_edges"]
-
-    attributes = expected.get("attributes", [])
-    if not attributes:
-        return
-
-    # format our expected set if we are working with existing attributes
-    expected_attrs = pd.DataFrame(attributes).reset_index(drop=True)
-    for attr in expected_attrs.columns:
-        if attr in existing_attrs:
-            # add the value as "y" since we are merging to an existing
-            expected_attrs[f"{attr}.y"] = expected_attrs[attr]
-
-            def edge_attr_for_row(row, attr=attr):
-                source = graph.vs.find(name=row["from"]).index
-                target = graph.vs.find(name=row["to"]).index
-
-                match = existing_edges_df.loc[
-                    (existing_edges_df["source"] == source) & (existing_edges_df["target"] == target)
-                ]
-
-                return match[attr].iloc[0] if not match.empty else np.nan
-
-            expected_attrs[f"{attr}.x"] = expected_attrs.apply(edge_attr_for_row, axis=1)
-
-            expected_attrs.drop(columns=[attr], inplace=True)
-
-    actual_attrs = edge_df.reset_index(drop=True)
-
-    attr_set = expected_attrs.merge(actual_attrs, how="left", on=["from", "to"], suffixes=("_expected", "_actual"))
-
-    attr_cols = [col for col in expected_attrs.columns if col not in ReservedGraphKeywords.EDGES]
-    for col in attr_cols:
-        pd.testing.assert_series_equal(
-            attr_set[f"{col}_expected"],
-            attr_set[f"{col}_actual"],
-            check_index=False,
-            check_names=False,
-        )
+    expected_attributes = expected["attributes"]
+    attr_cols = [col for col in edge_df.columns if col not in ReservedGraphKeywords.EDGES]
+    assert len(attr_cols) == len(expected_attributes.keys())
+    for col, expected_attr in expected_attributes.items():
+        assert expected_attr.equals(edge_df[col])
 
 
 @pytest.mark.parametrize(
-    "y,expected_set",
+    "y,expected",
     [
         pytest.param(
             pd.DataFrame(
                 {
-                    "name": ["d", "e"],
+                    "name": ["g"],
                 }
             ),
-            _Expected(
-                undirected={
-                    "num_nodes": 3,
-                    "names": ["a", "b", "c"],
+            {
+                "num_vertices": 4,
+                "attributes": {
+                    "name": pd.Series(["a", "b", "c", "d"]),
                 },
+            },
+            id="drop non-matching nodes in y",
+        ),
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "name": ["b", "a"],
+                    "new_attr": ["hello", "world"],
+                }
             ),
-            id="add no new nodes",
+            {
+                "num_vertices": 4,
+                "attributes": {
+                    "name": pd.Series(["a", "b", "c", "d"]),
+                    "new_attr": pd.Series(["world", "hello", np.nan, np.nan]),
+                },
+            },
+            id="left join with new attributes",
+        ),
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "name": ["a", "a"],
+                    "new_attr": ["hello", "!"],
+                }
+            ),
+            {
+                "num_vertices": 5,
+                "attributes": {
+                    "name": pd.Series(["a", "b", "c", "d", "a"]),
+                    "new_attr": pd.Series(["hello", np.nan, np.nan, np.nan, "!"]),
+                },
+            },
+            id="cartesian explodes nodes",
+        ),
+    ],
+)
+def test_left_join_nodes(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, Any]) -> None:
+    tg = Tidygraph(graph=graph).activate(ActiveType.NODES).join(y, how="left")
+
+    node_df = tg.vertex_dataframe
+
+    assert len(node_df) == expected["num_vertices"]
+
+    expected_attributes = expected["attributes"]
+    attr_cols = [col for col in node_df.columns if col not in ReservedGraphKeywords.NODES]
+    assert len(attr_cols) == len(expected_attributes.keys())
+    for col, expected_attr in expected_attributes.items():
+        assert expected_attr.equals(node_df[col])
+
+
+@pytest.mark.parametrize(
+    "y,expected",
+    [
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "from": ["a"],
+                    "to": ["d"],
+                }
+            ),
+            {
+                "num_edges": 4,
+                "attributes": {},
+            },
+            id="drop non-matching edges in y",
+        ),
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "from": ["a"],
+                    "to": ["b"],
+                    "new_attr": ["hello"],
+                }
+            ),
+            {
+                "num_edges": 4,
+                "attributes": {
+                    "new_attr": pd.Series(["hello", np.nan, np.nan, np.nan]),
+                },
+            },
+            id="accept new attributes on existing edge",
+        ),
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "from": ["a", "a"],
+                    "to": ["b", "b"],
+                    "new_attr": ["hello", "world"],
+                }
+            ),
+            {
+                "num_edges": 5,
+                "attributes": {
+                    "new_attr": pd.Series(["hello", np.nan, np.nan, np.nan, "world"]),
+                },
+            },
+            id="cartesian explodes edges",
+        ),
+    ],
+)
+def test_left_join_edges(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, Any]) -> None:
+    tg = Tidygraph(graph=graph).activate(ActiveType.EDGES).join(y, how="left")
+
+    edge_df = tg.edge_dataframe
+
+    assert len(edge_df) == expected["num_edges"]
+
+    expected_attributes = expected["attributes"]
+    attr_cols = [col for col in edge_df.columns if col not in ReservedGraphKeywords.EDGES]
+    assert len(attr_cols) == len(expected_attributes.keys())
+    for col, expected_attr in expected_attributes.items():
+        assert expected_attr.equals(edge_df[col])
+
+
+@pytest.mark.parametrize(
+    "y,expected",
+    [
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "name": ["a", "b"],
+                }
+            ),
+            {
+                "num_vertices": 2,
+                "attributes": {
+                    "name": pd.Series(["a", "b"]),
+                },
+            },
+            id="right join drops non-matching x nodes in graph",
+        ),
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "name": ["a", "g", "b"],
+                }
+            ),
+            {
+                "num_vertices": 3,
+                "attributes": {
+                    "name": pd.Series(["a", "b", "g"]),
+                },
+            },
+            id="right join with new node in y",
         ),
         pytest.param(
             pd.DataFrame(
                 {
                     "name": ["a", "b", "c"],
-                    "color": ["red", "blue", "green"],
+                    "new_attr": ["hello", "world", None],
                 }
             ),
-            _Expected(
-                undirected={
-                    "num_nodes": 3,
-                    "names": ["a", "b", "c"],
-                    "attributes": {
-                        "a": {"color": "red"},
-                        "b": {"color": "blue"},
-                        "c": {"color": "green"},
-                    },
+            {
+                "num_vertices": 3,
+                "attributes": {
+                    "name": pd.Series(["a", "b", "c"]),
+                    "new_attr": pd.Series(["hello", "world", np.nan]),
                 },
+            },
+            id="right join with new attributes in y",
+        ),
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "name": ["a", "b", "a"],
+                    "new_attr": ["hello", "!", "world"],
+                }
             ),
-            id="add attributes",
+            {
+                "num_vertices": 3,
+                "attributes": {
+                    "name": pd.Series(["a", "b", "a"]),
+                    "new_attr": pd.Series(["hello", "!", "world"]),
+                },
+            },
+            id="cartesian explodes nodes",
         ),
     ],
 )
-def test_left_join_node(graph: ig.Graph, y: pd.DataFrame, expected_set: _Expected) -> None:
-    tg = Tidygraph(graph=graph).activate(ActiveType.NODES).join(y, how="left")
-
-    vertex_df = tg.vertex_dataframe
-
-    # We do not separate by undirected vs undirected graphs since nodes are the same in both cases
-    expected = expected_set.undirected
-
-    assert vertex_df["name"].count() == expected["num_nodes"]
-
-    if "attributes" not in expected:
-        return
-
-    expected_attrs = pd.DataFrame(expected["attributes"]).transpose().reset_index(drop=True)
-    attr_cols = [col for col in expected_attrs.columns if col not in ReservedGraphKeywords.NODES]
-    actual_attrs = vertex_df[attr_cols].reset_index(drop=True)
-
-    pd.testing.assert_frame_equal(actual_attrs, expected_attrs)
-
-
-@pytest.mark.parametrize(
-    "y,expected_set",
-    [
-        pytest.param(
-            pd.DataFrame(
-                {
-                    "from": ["a", "b", "d"],
-                    "to": ["b", "c", "e"],
-                }
-            ),
-            _Expected(
-                directed={
-                    "expected_edges": 2,
-                },
-                undirected={
-                    "expected_edges": 2,
-                },
-            ),
-            id="left join edges does not accept new edges",
-        ),
-        pytest.param(
-            pd.DataFrame(
-                {
-                    "from": ["a", "c"],
-                    "to": ["b", "a"],
-                    "weight": [1.5, 2.5],
-                }
-            ),
-            _Expected(
-                directed={
-                    "expected_edges": 2,
-                    "attributes": [
-                        {"from": "a", "to": "b", "weight": 1.5},
-                        {"from": "b", "to": "c", "weight": np.nan},
-                    ],
-                },
-                undirected={
-                    "expected_edges": 2,
-                    "attributes": [
-                        {"from": "a", "to": "b", "weight": 1.5},
-                        {"from": "b", "to": "c", "weight": np.nan},
-                    ],
-                },
-            ),
-            id="left join edges with attributes on existing edges",
-        ),
-    ],
-)
-def test_left_join_edge(graph: ig.Graph, y: pd.DataFrame, expected_set: _Expected) -> None:
-    # record the set of attributes that already exist for easier testing
-    existing_attrs = set(graph.es.attribute_names())
-    existing_edges_df = graph.get_edge_dataframe()
-
-    tg = Tidygraph(graph=graph)
-    tg = tg.activate(ActiveType.EDGES).join(y, how="left")
-    node_df = tg.vertex_dataframe
-    edge_df = tg.edge_dataframe
-
-    # augment the edge dataframe with source and target names for easier testing
-    edge_df["from"] = edge_df["source"].map(lambda x: node_df.loc[x, "name"])
-    edge_df["to"] = edge_df["target"].map(lambda x: node_df.loc[x, "name"])
-
-    expected = expected_set.directed if graph.is_directed() else expected_set.undirected
-
-    assert len(edge_df) == expected["expected_edges"]
-
-    attributes = expected.get("attributes", [])
-    if not attributes:
-        return
-
-    # format our expected set if we are working with existing attributes
-    expected_attrs = pd.DataFrame(attributes).reset_index(drop=True)
-    for attr in expected_attrs.columns:
-        if attr in existing_attrs:
-            # add the value as "y" since we are merging to an existing
-            expected_attrs[f"{attr}.y"] = expected_attrs[attr]
-
-            def edge_attr_for_row(row, attr=attr):
-                source = graph.vs.find(name=row["from"]).index
-                target = graph.vs.find(name=row["to"]).index
-
-                match = existing_edges_df.loc[
-                    (existing_edges_df["source"] == source) & (existing_edges_df["target"] == target)
-                ]
-
-                return match[attr].iloc[0] if not match.empty else np.nan
-
-            expected_attrs[f"{attr}.x"] = expected_attrs.apply(edge_attr_for_row, axis=1)
-
-            expected_attrs.drop(columns=[attr], inplace=True)
-
-    actual_attrs = edge_df.reset_index(drop=True)
-
-    attr_set = expected_attrs.merge(actual_attrs, how="left", on=["from", "to"], suffixes=("_expected", "_actual"))
-
-    attr_cols = [col for col in expected_attrs.columns if col not in ReservedGraphKeywords.EDGES]
-    for col in attr_cols:
-        pd.testing.assert_series_equal(
-            attr_set[f"{col}_expected"],
-            attr_set[f"{col}_actual"],
-            check_index=False,
-            check_names=False,
-        )
-
-
-@pytest.mark.parametrize(
-    "y,expected_set",
-    [
-        pytest.param(
-            pd.DataFrame(
-                {
-                    "name": ["d", "e"],
-                }
-            ),
-            _Expected(
-                undirected={
-                    "num_nodes": 2,
-                    "names": ["d", "e"],
-                },
-            ),
-            id="add new nodes",
-        ),
-        pytest.param(
-            pd.DataFrame(
-                {
-                    "name": ["b", "c"],
-                    "color": ["blue", "green"],
-                }
-            ),
-            _Expected(
-                undirected={
-                    "num_nodes": 2,
-                    "names": ["b", "c"],
-                    "attributes": {
-                        "b": {"color": "blue"},
-                        "c": {"color": "green"},
-                    },
-                },
-            ),
-            id="existing nodes with attributes",
-        ),
-    ],
-)
-def test_right_join_node(graph: ig.Graph, y: pd.DataFrame, expected_set: _Expected) -> None:
+def test_right_join_nodes(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, Any]) -> None:
     tg = Tidygraph(graph=graph).activate(ActiveType.NODES).join(y, how="right")
 
-    vertex_df = tg.vertex_dataframe
+    node_df = tg.vertex_dataframe
 
-    # We do not separate by undirected vs undirected graphs since nodes are the same in both cases
-    expected = expected_set.undirected
+    assert len(node_df) == expected["num_vertices"]
 
-    assert vertex_df["name"].count() == expected["num_nodes"]
-
-    if "attributes" not in expected:
-        return
-
-    expected_attrs = pd.DataFrame(expected["attributes"]).transpose().reset_index(drop=True)
-    attr_cols = [col for col in expected_attrs.columns if col not in ReservedGraphKeywords.NODES]
-    actual_attrs = vertex_df[attr_cols].reset_index(drop=True)
-
-    pd.testing.assert_frame_equal(actual_attrs, expected_attrs)
+    expected_attributes = expected["attributes"]
+    attr_cols = [col for col in node_df.columns if col not in ReservedGraphKeywords.NODES]
+    assert len(attr_cols) == len(expected_attributes.keys())
+    for col, expected_attr in expected_attributes.items():
+        assert expected_attr.equals(node_df[col])
 
 
 @pytest.mark.parametrize(
-    "y,expected_set",
+    "y,expected",
     [
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "from": ["a"],
+                    "to": ["b"],
+                }
+            ),
+            {
+                "num_edges": 1,
+                "attributes": {},
+            },
+            id="right join drops non-matching x edges in graph",
+        ),
         pytest.param(
             pd.DataFrame(
                 {
                     "from": ["a", "a"],
-                    "to": ["b", "c"],
+                    "to": ["d", "b"],
                 }
             ),
-            _Expected(
-                directed={
-                    "expected_edges": 2,
-                },
-                undirected={
-                    "expected_edges": 2,
-                },
-            ),
-            id="with new edges",
+            {
+                "num_edges": 2,
+                "attributes": {},
+            },
+            id="right join with new edge in y",
         ),
         pytest.param(
-            pd.DataFrame(
-                {
-                    "from": ["b", "c"],
-                    "to": ["c", "a"],
-                    "color": ["blue", "cyan"],
-                }
-            ),
-            _Expected(
-                directed={
-                    "expected_edges": 2,
-                    "attributes": [
-                        {"from": "b", "to": "c", "color": "blue"},
-                        {"from": "c", "to": "a", "color": "cyan"},
-                    ],
-                },
-                undirected={
-                    "expected_edges": 2,
-                    "attributes": [
-                        {"from": "a", "to": "c", "color": "cyan"},
-                        {"from": "b", "to": "c", "color": "blue"},
-                    ],
-                },
-            ),
-            id="with attributes on new edges",
+            pd.DataFrame({"from": ["b", "a", "b"], "to": ["d", "b", "d"], "new_attrs": ["hello", "world", "!"]}),
+            {"num_edges": 3, "attributes": {"new_attrs": pd.Series(["world", "hello", "!"])}},
+            id="cartesian explodes edges",
         ),
     ],
 )
-def test_right_join_edge(graph: ig.Graph, y: pd.DataFrame, expected_set: _Expected) -> None:
-    # record the set of attributes that already exist for easier testing
-    existing_attrs = set(graph.es.attribute_names())
-    existing_edges_df = graph.get_edge_dataframe()
+def test_right_join_edges(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, Any]) -> None:
+    tg = Tidygraph(graph=graph).activate(ActiveType.EDGES).join(y, how="right")
 
-    tg = Tidygraph(graph=graph)
-    tg = tg.activate(ActiveType.EDGES).join(y, how="right")
-    node_df = tg.vertex_dataframe
     edge_df = tg.edge_dataframe
 
-    # augment the edge dataframe with source and target names for easier testing
-    edge_df["from"] = edge_df["source"].map(lambda x: node_df.loc[x, "name"])
-    edge_df["to"] = edge_df["target"].map(lambda x: node_df.loc[x, "name"])
+    assert len(edge_df) == expected["num_edges"]
 
-    expected = expected_set.directed if graph.is_directed() else expected_set.undirected
+    expected_attributes = expected["attributes"]
+    attr_cols = [col for col in edge_df.columns if col not in ReservedGraphKeywords.EDGES]
+    assert len(attr_cols) == len(expected_attributes.keys())
+    for col, expected_attr in expected_attributes.items():
+        assert expected_attr.equals(edge_df[col])
 
-    assert len(edge_df) == expected["expected_edges"]
 
-    attributes = expected.get("attributes", [])
-    if not attributes:
-        return
+@pytest.mark.parametrize(
+    "how,y,expected",
+    [
+        pytest.param(
+            "outer",
+            pd.DataFrame(
+                {
+                    "from": ["a"],
+                    "to": ["b"],
+                    "weight": [5.3],
+                }
+            ),
+            {
+                "attributes": {
+                    "x": pd.Series([1.0, 2.0, 3.0, 4.0]),
+                    "y": pd.Series([5.3, np.nan, np.nan, np.nan]),
+                }
+            },
+            id="outer join with conflicting column name",
+        ),
+        pytest.param(
+            "inner",
+            pd.DataFrame(
+                {
+                    "from": ["a"],
+                    "to": ["b"],
+                    "weight": [5.3],
+                }
+            ),
+            {
+                "num_edges": 1,
+                "attributes": {
+                    "x": pd.Series([1.0]),
+                    "y": pd.Series([5.3]),
+                },
+            },
+            id="inner join with conflicting column name",
+        ),
+        pytest.param(
+            "left",
+            pd.DataFrame(
+                {
+                    "from": ["a"],
+                    "to": ["b"],
+                    "weight": [5.3],
+                }
+            ),
+            {
+                "attributes": {
+                    "x": pd.Series([1.0, 2.0, 3.0, 4.0]),
+                    "y": pd.Series([5.3, np.nan, np.nan, np.nan]),
+                }
+            },
+            id="left join with conflicting column name",
+        ),
+        pytest.param(
+            "right",
+            pd.DataFrame({"from": ["b"], "to": ["d"], "weight": [5.3]}),
+            {"attributes": {"x": pd.Series([3.0]), "y": pd.Series([5.3])}},
+            id="right join with conflicting column name",
+        ),
+    ],
+)
+def test_conflicted_joins(
+    graph: ig.Graph, how: Literal["outer", "inner", "left", "right"], y: pd.DataFrame, expected: dict[str, Any]
+) -> None:
+    """Tests that we handle conflicts in column names by suffixing them."""
+    original_weights = [1.0, 2.0, 3.0, 4.0]
+    attr_name = "weight"
+    graph.es[attr_name] = original_weights
+    tg = Tidygraph(graph=graph).activate(ActiveType.EDGES).join(y, how=how)
 
-    # format our expected set if we are working with existing attributes
-    expected_attrs = pd.DataFrame(attributes).reset_index(drop=True)
-    for attr in expected_attrs.columns:
-        if attr in existing_attrs:
-            # add the value as "y" since we are merging to an existing
-            expected_attrs[f"{attr}.y"] = expected_attrs[attr]
+    edges = tg.edge_dataframe
 
-            def edge_attr_for_row(row, attr=attr):
-                source = graph.vs.find(name=row["from"]).index
-                target = graph.vs.find(name=row["to"]).index
+    attributes = expected["attributes"]
+    expected_x_attr = attributes["x"]
+    expected_y_attr = attributes["y"]
 
-                match = existing_edges_df.loc[
-                    (existing_edges_df["source"] == source) & (existing_edges_df["target"] == target)
-                ]
-
-                return match[attr].iloc[0] if not match.empty else np.nan
-
-            expected_attrs[f"{attr}.x"] = expected_attrs.apply(edge_attr_for_row, axis=1)
-
-            expected_attrs.drop(columns=[attr], inplace=True)
-
-    actual_attrs = edge_df.reset_index(drop=True)
-
-    attr_set = expected_attrs.merge(actual_attrs, how="left", on=["from", "to"], suffixes=("_expected", "_actual"))
-
-    attr_cols = [col for col in expected_attrs.columns if col not in ReservedGraphKeywords.EDGES]
-    for col in attr_cols:
-        pd.testing.assert_series_equal(
-            attr_set[f"{col}_expected"],
-            attr_set[f"{col}_actual"],
-            check_index=False,
-            check_names=False,
-        )
+    left, right = f"{attr_name}.x", f"{attr_name}.y"
+    assert expected_x_attr.equals(edges[left])
+    assert expected_y_attr.equals(edges[right])
