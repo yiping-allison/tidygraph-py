@@ -99,7 +99,7 @@ def outer_join(
     new = x_merged["_merge"] == "right_only"
     new_rows = x_merged[new]
     x_merged = x_merged[~new]
-    x_merged.sort_index(inplace=True)
+    x_merged = x_merged.set_index("_index").sort_index()
     x_merged = pd.concat([x_merged, new_rows])
     x_merged.drop(columns=[col for col in x_merged if col.startswith("_")], inplace=True)
     if active == ActiveType.NODES:
