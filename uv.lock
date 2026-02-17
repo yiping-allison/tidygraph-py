@@ -904,7 +904,7 @@ wheels = [
 
 [[package]]
 name = "tidygraph"
-version = "0.3.8"
+version = "0.4.8"
 source = { editable = "." }
 dependencies = [
     { name = "igraph" },

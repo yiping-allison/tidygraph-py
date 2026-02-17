@@ -396,28 +396,35 @@ class Tidygraph:
         return ig.plot(self._graph, target, bbox, *args, **kwargs)
 
     @classmethod
-    def from_dataframe(cls, edges: IntoDataFrame, nodes: IntoDataFrame, directed: bool = False) -> "Tidygraph":
+    def from_dataframe(
+        cls, edges: IntoDataFrame, nodes: IntoDataFrame | None = None, directed: bool = False
+    ) -> "Tidygraph":
         """Constructs a Tidygraph object from edges and nodes represented as dataframes.
 
         Args:
-            edges: A dataframe-like object representing the edges of the graph. Must contain "from" and "to" columns.
-            nodes: A dataframe-like object representing the nodes of the graph. Must contain a "name" column.
-            directed: A boolean indicating whether the graph is directed. Defaults to False.
+            edges (DataFrame-like): A dataframe-like object representing the edges of the graph. \
+                Must contain "from" and "to" columns.
+            nodes (DataFrame-like, Optional): A dataframe-like object representing the nodes of the graph. \
+                Must contain a "name" column.
+            directed (bool, Optional): A boolean indicating whether the graph is directed. Defaults to False.
 
         Raises:
             TidygraphValueError: If either the nodes or edges dataframe do not match expected requirements.
         """
         edge_df = nw.from_native(edges).to_pandas()
-        node_df = nw.from_native(nodes).to_pandas()
 
-        node_df_cols = set(list(node_df.columns))
-        required_node_cols = set(["name"])
-        if not required_node_cols.issubset(node_df_cols):
-            raise TidygraphValueError('nodes dataframe must contain "name" column')
+        node_df = None
+        if nodes is not None:
+            node_df = nw.from_native(nodes).to_pandas()
 
-        node_col_order = ["name"]
-        node_attributes = list(node_df_cols - required_node_cols)
-        node_df = node_df[node_col_order + node_attributes]
+            node_df_cols = set(list(node_df.columns))
+            required_node_cols = set(["name"])
+            if not required_node_cols.issubset(node_df_cols):
+                raise TidygraphValueError('nodes dataframe must contain "name" column')
+
+            node_col_order = ["name"]
+            node_attributes = list(node_df_cols - required_node_cols)
+            node_df = node_df[node_col_order + node_attributes]
 
         edge_df_cols = set(list(edge_df.columns))
         required_edge_cols = set(["from", "to"])
