@@ -42,7 +42,7 @@ def outer_join(
         on = ["source", "target"]
         if not g.is_directed():
             y_mirror = y.rename(columns={"source": "target", "target": "source"})
-            y_with_mirror = pd.concat([y, y_mirror], ignore_index=True)
+            y_with_mirror = pd.concat([y, y_mirror])
             x_merged = x.merge(y_with_mirror, how="left", on=on, suffixes=(lsuffix, rsuffix), indicator=True)
             explosion = x_merged[x_merged["_merge"] == "both"].groupby("_index").size()
             explosion = explosion[explosion > 1]
@@ -54,7 +54,7 @@ def outer_join(
                     index = new_filtered.iloc[i * -1].name
                     x_merged.at[index, "_merge"] = "right_only"
             x_merged_mirror = x_merged.rename(columns={"source": "target", "target": "source"})
-            x_merged_with_mirror = pd.concat([x_merged, x_merged_mirror], ignore_index=True)
+            x_merged_with_mirror = pd.concat([x_merged, x_merged_mirror])
             y_merged = y.merge(
                 x_merged_with_mirror.drop(columns=["_merge"]),
                 how="left",
@@ -71,7 +71,7 @@ def outer_join(
                 new_rows.drop(columns=[col, f"{base}.y"], inplace=True)
             new_rows = new_rows[new_rows.columns.intersection(y.columns)]
             new_rows["_merge"] = ["right_only"] * len(new_rows)
-            x_merged = pd.concat([x_merged, new_rows], ignore_index=True)
+            x_merged = pd.concat([x_merged, new_rows])
         else:
             x_merged = x.merge(y, how="outer", on=on, suffixes=(lsuffix, rsuffix), indicator=True)
             explosion = x_merged[x_merged["_merge"] == "both"].groupby("_index").size()
@@ -99,6 +99,7 @@ def outer_join(
     new = x_merged["_merge"] == "right_only"
     new_rows = x_merged[new]
     x_merged = x_merged[~new]
+    x_merged.sort_index(inplace=True)
     x_merged = pd.concat([x_merged, new_rows])
     x_merged.drop(columns=[col for col in x_merged if col.startswith("_")], inplace=True)
     if active == ActiveType.NODES:
@@ -148,7 +149,7 @@ def inner_join(
                     "target": "source",
                 }
             )
-            y = pd.concat([y, y_mirror], ignore_index=True)
+            y = pd.concat([y, y_mirror])
 
     x_merged = x.merge(y, how="inner", on=on, suffixes=(lsuffix, rsuffix), indicator=True)
     explosion = x_merged[x_merged["_merge"] == "both"].groupby("_index").size()
@@ -238,7 +239,7 @@ def left_join(
                     "target": "source",
                 }
             )
-            y = pd.concat([y, y_mirror], ignore_index=True)
+            y = pd.concat([y, y_mirror])
 
     x_merged = x.merge(y, how="left", on=on, suffixes=(lsuffix, rsuffix), indicator=True)
     explosion = x_merged[x_merged["_merge"] == "both"].groupby("_index").size()
@@ -320,7 +321,7 @@ def right_join(
                     "target": "source",
                 }
             )
-            x = pd.concat([x, x_mirror], ignore_index=False)
+            x = pd.concat([x, x_mirror])
     else:
         y["_sort_index"] = y["name"].map(name_to_index)
         y = y.sort_values("_sort_index").drop(columns=["_sort_index"])
