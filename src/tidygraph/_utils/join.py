@@ -93,7 +93,7 @@ def outer_join(
             old_filtered = x[x["name"] == name]
             for i in range(1, len(new_filtered) - len(old_filtered) + 1):
                 index = new_filtered.iloc[i * -1].name
-                x_merged.at[i, "_merge"] = "right_only"
+                x_merged.at[index, "_merge"] = "right_only"
 
     x_merged.dropna(axis=1, how="all", inplace=True)
     new = x_merged["_merge"] == "right_only"
@@ -169,7 +169,7 @@ def inner_join(
             old_filtered = x[x["name"] == name]
             for i in range(1, len(new_filtered) - len(old_filtered) + 1):
                 index = new_filtered.iloc[i * -1].name
-                x_merged.at[i, "_merge"] = "right_only"
+                x_merged.at[index, "_merge"] = "right_only"
 
     to_remove = x.merge(y, how="left_anti", on=on, suffixes=(lsuffix, rsuffix), indicator=True)
     to_remove = to_remove[to_remove["_merge"] == "left_only"]
@@ -259,7 +259,7 @@ def left_join(
             old_filtered = x[x["name"] == name]
             for i in range(1, len(new_filtered) - len(old_filtered) + 1):
                 index = new_filtered.iloc[i * -1].name
-                x_merged.at[i, "_merge"] = "right_only"
+                x_merged.at[index, "_merge"] = "right_only"
 
     x_merged.dropna(axis=1, how="all", inplace=True)
     new = x_merged["_merge"] == "right_only" if not x_merged.empty else pd.Series([False] * len(x_merged))
@@ -349,7 +349,7 @@ def right_join(
             old_filtered = x[x["name"] == name]
             for i in range(1, len(new_filtered) - len(old_filtered) + 1):
                 index = new_filtered.iloc[i * -1].name
-                x_merged.at[i, "_merge"] = "right_only"
+                x_merged.at[index, "_merge"] = "right_only"
 
     to_remove = to_remove[to_remove["_merge"] == "left_only"]
     to_remove.set_index("_index", inplace=True)
