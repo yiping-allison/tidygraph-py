@@ -22,5 +22,9 @@
       "name": "tidygraph",
       "path": "."
     }
-  ]
+  ],
+  "settings": {
+    "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
+    "nixEnvSelector.useFlakes": true
+  }
 }

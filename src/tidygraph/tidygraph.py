@@ -397,7 +397,7 @@ class Tidygraph:
 
     @classmethod
     def from_dataframe(
-        cls, edges: IntoDataFrame, nodes: IntoDataFrame | None = None, directed: bool = False
+        cls, edges: IntoDataFrame, nodes: IntoDataFrame | None = None, directed: bool = False, use_vids: bool = False
     ) -> "Tidygraph":
         """Constructs a Tidygraph object from edges and nodes represented as dataframes.
 
@@ -407,6 +407,9 @@ class Tidygraph:
             nodes (DataFrame-like, Optional): A dataframe-like object representing the nodes of the graph. \
                 Must contain a "name" column.
             directed (bool, Optional): A boolean indicating whether the graph is directed. Defaults to False.
+            use_vids (bool, Optional): A boolean indicating whether to interpret the first two columns of the edges \
+                argument as vertex ids (0-based integers) instead of vertex names. If this argument is set to True \
+                and the first two columns of edges are not integers, an error is thrown.
 
         Raises:
             TidygraphValueError: If either the nodes or edges dataframe do not match expected requirements.
@@ -435,6 +438,9 @@ class Tidygraph:
         edge_attributes = list(edge_df_cols - required_edge_cols)
         edge_df = edge_df[edge_col_order + edge_attributes]
 
-        graph = ig.Graph.DataFrame(edges=edge_df, directed=directed, vertices=node_df, use_vids=False)
+        try:
+            graph = ig.Graph.DataFrame(edges=edge_df, directed=directed, vertices=node_df, use_vids=use_vids)
+        except Exception as e:
+            raise TidygraphValueError("failed to create underlying graph") from e
 
         return cls(graph=graph)

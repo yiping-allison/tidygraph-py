@@ -2,6 +2,7 @@ from collections.abc import Iterable
 
 import igraph as ig
 import pandas as pd
+from pandas.api.types import is_integer_dtype
 
 from tidygraph._utils.const import ReservedGraphKeywords
 from tidygraph.activate import ActiveType
@@ -36,9 +37,13 @@ def outer_join(
         nodes_df = g.get_vertex_dataframe()
         id_map = nodes_df.set_index("name")
         name_to_index = pd.Series(data=nodes_df.index.to_numpy(), index=id_map.index)
-        y["source"] = y["from"].map(name_to_index)
-        y["target"] = y["to"].map(name_to_index)
-        y.drop(columns=["from", "to"], inplace=True)
+        are_indices = [is_integer_dtype(y["from"].dtype), is_integer_dtype(y["to"].dtype)]
+        if not all(are_indices):
+            y["source"] = y["from"].map(name_to_index)
+            y["target"] = y["to"].map(name_to_index)
+            y.drop(columns=["from", "to"], inplace=True)
+        else:
+            y = y.rename(columns={"from": "source", "to": "target"})
         on = ["source", "target"]
         if not g.is_directed():
             y_mirror = y.rename(columns={"source": "target", "target": "source"})
@@ -138,9 +143,13 @@ def inner_join(
         nodes_df = g.get_vertex_dataframe()
         id_map = nodes_df.set_index("name")
         name_to_index = pd.Series(data=nodes_df.index.to_numpy(), index=id_map.index)
-        y["source"] = y["from"].map(name_to_index)
-        y["target"] = y["to"].map(name_to_index)
-        y.drop(columns=["from", "to"], inplace=True)
+        are_indices = [is_integer_dtype(y["from"].dtype), is_integer_dtype(y["to"].dtype)]
+        if not all(are_indices):
+            y["source"] = y["from"].map(name_to_index)
+            y["target"] = y["to"].map(name_to_index)
+            y.drop(columns=["from", "to"], inplace=True)
+        else:
+            y = y.rename(columns={"from": "source", "to": "target"})
         on = ["source", "target"]
         if not g.is_directed():
             y_mirror = y.rename(
@@ -228,9 +237,13 @@ def left_join(
         nodes_df = g.get_vertex_dataframe()
         id_map = nodes_df.set_index("name")
         name_to_index = pd.Series(data=nodes_df.index.to_numpy(), index=id_map.index)
-        y["source"] = y["from"].map(name_to_index)
-        y["target"] = y["to"].map(name_to_index)
-        y.drop(columns=["from", "to"], inplace=True)
+        are_indices = [is_integer_dtype(y["from"].dtype), is_integer_dtype(y["to"].dtype)]
+        if not all(are_indices):
+            y["source"] = y["from"].map(name_to_index)
+            y["target"] = y["to"].map(name_to_index)
+            y.drop(columns=["from", "to"], inplace=True)
+        else:
+            y = y.rename(columns={"from": "source", "to": "target"})
         on = ["source", "target"]
         if not g.is_directed():
             y_mirror = y.rename(
@@ -305,14 +318,18 @@ def right_join(
     name_to_index = pd.Series(data=nodes_df.index.to_numpy(), index=id_map.index)
 
     if active == ActiveType.EDGES:
-        y["source"] = y["from"].map(name_to_index)
-        y["target"] = y["to"].map(name_to_index)
+        are_indices = [is_integer_dtype(y["from"].dtype), is_integer_dtype(y["to"].dtype)]
+        if not all(are_indices):
+            y["source"] = y["from"].map(name_to_index)
+            y["target"] = y["to"].map(name_to_index)
+            y.drop(columns=["from", "to"], inplace=True)
+        else:
+            y = y.rename(columns={"from": "source", "to": "target"})
         # sort y by existing indices; we need this since the main driver table is y (which can be unsorted)
         y["_sort_index"] = [_get_edge_id(g, source, target) for source, target in y[["source", "target"]].to_numpy()]
         y = y.sort_values("_sort_index").drop(columns=["_sort_index"])
         if not y[["source", "target"]].notna().all().all():
             raise TidygraphValueError("Cannot perform edge join on non-existing nodes in the graph")
-        y.drop(columns=["from", "to"], inplace=True)
         on = ["source", "target"]
         if not g.is_directed():
             x_mirror = x.rename(

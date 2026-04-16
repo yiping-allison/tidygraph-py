@@ -168,6 +168,22 @@ def test_outer_join_nodes(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, 
             },
             id="cartesian creates exploded edges",
         ),
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "from": [0],
+                    "to": [1],
+                    "new_attr": ["hello"],
+                }
+            ),
+            {
+                "num_edges": 4,
+                "attributes": {
+                    "new_attr": pd.Series(["hello", np.nan, np.nan, np.nan]),
+                },
+            },
+            id="supports vids",
+        ),
     ],
 )
 def test_outer_join_edges(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, Any]) -> None:
@@ -296,6 +312,22 @@ def test_inner_join_nodes(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, 
                 },
             },
             id="cartesian creates exploded edges",
+        ),
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "from": [0, 0],
+                    "to": [2, 1],
+                    "new_attr": ["hello", None],
+                }
+            ),
+            {
+                "num_edges": 2,
+                "attributes": {
+                    "new_attr": pd.Series([np.nan, "hello"]),
+                },
+            },
+            id="supports vids",
         ),
     ],
 )
@@ -426,6 +458,22 @@ def test_left_join_nodes(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, A
             },
             id="cartesian explodes edges",
         ),
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "from": [0],
+                    "to": [1],
+                    "new_attr": ["hello"],
+                }
+            ),
+            {
+                "num_edges": 4,
+                "attributes": {
+                    "new_attr": pd.Series(["hello", np.nan, np.nan, np.nan]),
+                },
+            },
+            id="supports vids",
+        ),
     ],
 )
 def test_left_join_edges(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, Any]) -> None:
@@ -554,6 +602,19 @@ def test_right_join_nodes(graph: ig.Graph, y: pd.DataFrame, expected: dict[str, 
             pd.DataFrame({"from": ["b", "a", "b"], "to": ["d", "b", "d"], "new_attrs": ["hello", "world", "!"]}),
             {"num_edges": 3, "attributes": {"new_attrs": pd.Series(["world", "hello", "!"])}},
             id="cartesian explodes edges",
+        ),
+        pytest.param(
+            pd.DataFrame(
+                {
+                    "from": [0, 0],
+                    "to": [3, 1],
+                }
+            ),
+            {
+                "num_edges": 2,
+                "attributes": {},
+            },
+            id="supports vids",
         ),
     ],
 )
