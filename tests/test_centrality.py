@@ -1,7 +1,6 @@
-from typing import Any, Callable
+from typing import Any
 
 import igraph as ig
-import pandas as pd
 import pytest
 
 from tidygraph import Tidygraph
@@ -28,7 +27,12 @@ def graph() -> ig.Graph:
     ]
     max = 26  # assume we have max of 26 nodes
     start = ord("a")
-    g = ig.Graph(n=n, edges=edges, vertex_attrs={"name": [chr(start + (char % max)) for char in range(n)]})
+    g = ig.Graph(
+        n=n,
+        edges=edges,
+        vertex_attrs={"name": [chr(start + (char % max)) for char in range(n)]},
+        edge_attrs={"weight": [0.2 for _ in range(n)]},
+    )
 
     return g
 
@@ -58,18 +62,18 @@ def test_centrality_fails_on_unknown_args(
 
 
 @pytest.mark.parametrize(
-    "how,weights_func",
-    [pytest.param(kind, lambda x: pd.Series([1.0] * 4), id=f"{kind} accepts weights param") for kind in ALL],
+    "how,weights",
+    [pytest.param(kind, "weight", id=f"{kind} accepts weights param") for kind in ALL],
 )
 def test_centrality_accepts_custom_weights(
     graph: ig.Graph,
     kind_mapping: dict[str, ActiveType],
     how: CentralityKind,
-    weights_func: Callable[[pd.DataFrame], pd.Series],
+    weights: str,
 ):
     tg = Tidygraph(graph=graph)
     active = kind_mapping[how]
-    actual = tg.activate(active).centrality(how=how, weights=weights_func)
+    actual = tg.activate(active).centrality(how=how, weights=weights)
     actual_len = len(actual) if isinstance(actual, list) else 1
     assert actual_len == 4
 
