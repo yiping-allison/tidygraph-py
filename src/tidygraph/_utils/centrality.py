@@ -1,7 +1,4 @@
-from typing import Callable
-
 import igraph as ig
-import pandas as pd
 
 from tidygraph.activate import ActiveType
 from tidygraph.exceptions import TidygraphValueError
@@ -17,11 +14,11 @@ def centrality_degree(
     The degree centrality measures the fraction of vertices is connected to a vertex [1].
 
     Args:
-        weights (Callable[[pd.DataFrame], pd.Series], Optional): A function that when given the edges \
-            DataFrame, returns a pandas series representing custom edge weights.
         mode (str, Optional): `in`, `out`, or `all` representing the type of degree to be returned. \
             Defaults to `all`.
         loops (bool, Optional): Whether to count self-loops. Defaults to True.
+        weights (str | Iterable, Optional): Edge weights to be used. Can be a sequence or iterable or even an edge \
+            attribute name. `None` means to treat the graph as unweighted, falling back to ordinary degree calculations.
 
     Returns:
         float or list of float representing calculated centrality.
@@ -41,16 +38,10 @@ def centrality_degree(
         diff = keys - valid_keys
         raise TidygraphValueError(f"`centrality_degree` received unexpected keyword arguments: {diff}")
 
-    weights = pd.Series()
     if "weights" in kwargs:
-        edges_df = g.get_edge_dataframe()
-        weights_func: Callable[[pd.DataFrame], pd.Series] = kwargs.pop("weights")
-        weights = weights_func(edges_df)
+        return g.strength(**kwargs)
 
-    if weights.empty:
-        return g.degree(**kwargs)
-    else:
-        return g.strength(weights=weights, **kwargs)
+    return g.degree(**kwargs)
 
 
 def centrality_harmonic(
@@ -65,12 +56,12 @@ def centrality_harmonic(
 
     Args:
         vertices (int | list[int], Optional): The vertices for which result should be returned.
-        weights (Callable[[pd.DataFrame]. pd.Series], Optional): A function that when given the edges \
-            DataFrame, returns a pandas series representing custom edge weights.
         mode (str, Optional): `in`, `out`, or `all`. `in` is the length of incoming paths, `out` is the length \
             of outgoing paths, and `all` means both should be calculated. Defaults to `all`.
         cutoff (float, Optional): When not `None`, only paths less than or equal to this length are considered. \
             Defaults to None.
+        weights (str | Iterable, Optional): Edge weights to be used. Can be a sequence or iterable or even an edge \
+            attribute name. `None` means to treat the graph as unweighted, falling back to ordinary degree calculations.
         normalized (bool, Optional): Whether to normalize the result. If True, the result is the mean inverse path \
             length to other vertices. If False, the result is the sum of inverse path lengths to other vertices. \
             Defaults to True.
@@ -90,16 +81,7 @@ def centrality_harmonic(
         diff = keys = valid_keys
         raise TidygraphValueError(f"`centrality_harmonic` received unexpected keyword arguments: {diff}")
 
-    weights = pd.Series()
-    if "weights" in kwargs:
-        edges_df = g.get_edge_dataframe()
-        weights_func: Callable[[pd.DataFrame], pd.Series] = kwargs.pop("weights")
-        weights = weights_func(edges_df)
-
-    if weights.empty:
-        return g.harmonic_centrality(**kwargs)
-    else:
-        return g.harmonic_centrality(weights=weights, **kwargs)
+    return g.harmonic_centrality(**kwargs)
 
 
 def centrality_betweenness(
@@ -118,8 +100,8 @@ def centrality_betweenness(
         cutoff (int, Optional): If given, only paths less than or equal to this length are considered, \
             effectively resulting in an estimation of the betweenness for the given vertices. If `None`, the \
             exact betweenness is returned.
-        weights (Callable[[pd.DataFrame]. pd.Series], Optional): A function that when given the edges \
-            DataFrame, returns a pandas series representing custom edge weights.
+        weights (str | Iterable, Optional): Edge weights to be used. Can be a sequence or iterable or even an edge \
+            attribute name. `None` means to treat the graph as unweighted, falling back to ordinary degree calculations.
         sources (list[int], Optional): The set of source vertices to consider when calculating shortest paths.
         targets (list[int], Optional): The set of target vertices to consider when calculating shortest paths.
 
@@ -139,16 +121,7 @@ def centrality_betweenness(
         diff = keys = valid_keys
         raise TidygraphValueError(f"`centrality_betweenness` received unexpected keyword arguments: {diff}")
 
-    weights = pd.Series()
-    if "weights" in kwargs:
-        edges_df = g.get_edge_dataframe()
-        weights_func: Callable[[pd.DataFrame], pd.Series] = kwargs.pop("weights")
-        weights = weights_func(edges_df)
-
-    if weights.empty:
-        return g.betweenness(**kwargs)
-    else:
-        return g.betweenness(weights=weights, **kwargs)
+    return g.betweenness(**kwargs)
 
 
 def centrality_edge_betweenness(
@@ -166,8 +139,8 @@ def centrality_edge_betweenness(
         cutoff (int, Optional): If given, only paths less than or equal to this length are considered, \
             effectively resulting in an estimation of the betweenness for the given values. If `None`, the \
             exact betweenness is returned.
-        weights (Callable[[pd.DataFrame]. pd.Series], Optional): A function that when given the edges \
-            DataFrame, returns a pandas series representing custom edge weights.
+        weights (str | Iterable, Optional): Edge weights to be used. Can be a sequence or iterable or even an edge \
+            attribute name. `None` means to treat the graph as unweighted, falling back to ordinary degree calculations.
         sources (list[int], Optional): The set of source vertices to consider when calculating shortest paths.
         targets (list[int], Optional): The set of target vertices to consider when calculating shortest paths.
 
@@ -187,16 +160,7 @@ def centrality_edge_betweenness(
         diff = keys = valid_keys
         raise TidygraphValueError(f"`centrality_edge_betweenness` received unexpected arguments: {diff}")
 
-    weights = pd.Series()
-    if "weights" in kwargs:
-        edges_df = g.get_edge_dataframe()
-        weights_func: Callable[[pd.DataFrame], pd.Series] = kwargs.pop("weights")
-        weights = weights_func(edges_df)
-
-    if weights.empty:
-        return g.edge_betweenness(**kwargs)
-    else:
-        return g.edge_betweenness(weights=weights, **kwargs)
+    return g.edge_betweenness(**kwargs)
 
 
 def centrality_closeness(
@@ -217,8 +181,8 @@ def centrality_closeness(
         cutoff (int, Optional): If given, only paths less than or equal to this length are considered, \
             effectively resulting in an estimation of the betweenness for the given vertices. If `None`, the \
             exact betweenness is returned.
-        weights (Callable[[pd.DataFrame]. pd.Series], Optional): A function that when given the edges \
-            DataFrame, returns a pandas series representing custom edge weights.
+        weights (str | Iterable, Optional): Edge weights to be used. Can be a sequence or iterable or even an edge \
+            attribute name. `None` means to treat the graph as unweighted, falling back to ordinary degree calculations.
         normalized (bool, Optional): Whether to normalize the raw closeness scores by multiplying by the \
             number of vertices minus one. Defaults to True.
 
@@ -237,16 +201,7 @@ def centrality_closeness(
         diff = keys = valid_keys
         raise TidygraphValueError(f"`centrality_closeness` received unexpected arguments: {diff}")
 
-    weights = pd.Series()
-    if "weights" in kwargs:
-        edges_df = g.get_edge_dataframe()
-        weights_func: Callable[[pd.DataFrame], pd.Series] = kwargs.pop("weights")
-        weights = weights_func(edges_df)
-
-    if weights.empty:
-        return g.closeness(**kwargs)
-    else:
-        return g.closeness(weights=weights, **kwargs)
+    return g.closeness(**kwargs)
 
 
 def centrality_eigenvector(
@@ -272,8 +227,8 @@ def centrality_eigenvector(
         directed (bool, Optional): Whether to consider directed paths. Defaults to True.
         scale (bool, Optional): Whether to normalize the results wherein the largest value is scaled to 1 (and others \
             relative to that). Defaults to True.
-        weights (Callable[[pd.DataFrame]. pd.Series], Optional): A function that when given the edges \
-            DataFrame, returns a pandas series representing custom edge weights.
+        weights (str | Iterable, Optional): Edge weights to be used. Can be a sequence or iterable or even an edge \
+            attribute name. `None` means to treat the graph as unweighted, falling back to ordinary degree calculations.
         return_eigenvalue (bool, Optional): Whether to return the largest eigenvalue along with centralities. Defaults \
             to False.
         argpack_options (ARGPACKOptions, Optional): Object used to fine-tune the calculation. If omitted, a default \
@@ -291,16 +246,7 @@ def centrality_eigenvector(
         diff = keys = valid_keys
         raise TidygraphValueError(f"`centrality_eigenvector` received unexpected arguments: {diff}")
 
-    weights = pd.Series()
-    if "weights" in kwargs:
-        edges_df = g.get_edge_dataframe()
-        weights_func: Callable[[pd.DataFrame], pd.Series] = kwargs.pop("weights")
-        weights = weights_func(edges_df)
-
-    if weights.empty:
-        return g.eigenvector_centrality(**kwargs)
-    else:
-        return g.eigenvector_centrality(weights=weights, **kwargs)
+    return g.eigenvector_centrality(**kwargs)
 
 
 def centrality_pagerank(
@@ -320,14 +266,12 @@ def centrality_pagerank(
         directed (bool, Optional): Whether to consider directed paths. Defaults to True.
         damping (float, Optional): The damping factor. Damping is the probability of resetting the random walk
             to a uniform distribution in each step. Defaults to `0.85`.
-        weights (Callable[[pd.DataFrame]. pd.Series], Optional): A function that when given the edges \
-            DataFrame, returns a pandas series representing custom edge weights.
+        weights (str | Iterable, Optional): Edge weights to be used. Can be a sequence or iterable or even an edge \
+            attribute name. `None` means to treat the graph as unweighted, falling back to ordinary degree calculations.
         argpack_options (ARGPACKOptions, Optional): Object used to fine-tune the calculation. If omitted, a default \
             variant is used.
         implementation (str, Optional): `prpack` or `arpack`. Determines which implementation used to solve the \
             PageRank eigenproblem. Defaults to `prpack`.
-        personalized (Callable[[pd.DataFrame], pd.Series], Optional): A function that when given the nodes \
-            DataFrame, returns the distribution over the vertices to be used when resetting the random walk.
 
     Returns:
         A list with personalized or non-personalized PageRank values of specified vertices.
@@ -346,36 +290,11 @@ def centrality_pagerank(
             "weights",
             "argpack_options",
             "implementation",
-            "personalized",
         ]
     )
     keys = set(kwargs.keys())
     if not keys.issubset(valid_keys):
         diff = keys = valid_keys
         raise TidygraphValueError(f"`centrality_pagerank` received unexpected arguments: {diff}")
-
-    weights = pd.Series()
-    if "weights" in kwargs:
-        edges_df = g.get_edge_dataframe()
-        weights_func: Callable[[pd.DataFrame], pd.Series] = kwargs.pop("weights")
-        weights = weights_func(edges_df)
-
-    personalized = pd.Series()
-    if "personalized" in kwargs:
-        edges_df = g.get_edge_dataframe()
-        nodes_df = g.get_vertex_dataframe()
-        reset_func: Callable[[pd.DataFrame], pd.Series] = kwargs.pop("personalized")
-        personalized = reset_func(nodes_df)
-
-    has_weights, has_personalized = not weights.empty, not personalized.empty
-
-    if has_personalized:
-        if has_weights:
-            # ! NOTE: `pagerank` only supports python list variant for weight param
-            return g.personalized_pagerank(weights=weights.to_list(), reset=personalized, **kwargs)
-        return g.personalized_pagerank(reset=personalized, **kwargs)
-
-    if has_weights:
-        return g.pagerank(weights=weights.to_list(), **kwargs)
 
     return g.pagerank(**kwargs)
